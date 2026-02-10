@@ -273,18 +273,120 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] Configuration reference
 - [ ] Datasource documentation
 
-## Non-Goals (Out of Scope)
+---
 
-The following features are explicitly out of scope for the 80% compatibility target:
+# 100% Compatibility Target
 
-- **Chef/Puppet/Salt integration** - Use runcmd instead
-- **Landscape integration** - Ubuntu-specific
-- **Fan networking** - Ubuntu-specific
-- **apt_pipelining** - Too distribution-specific
-- **byobu** - Interactive tool, not boot-time
-- **emit_upstart** - Legacy init system
-- **grub_dpkg** - Debian-specific
-- **mcollective** - Deprecated
+The following phases extend beyond 80% to achieve full cloud-init compatibility.
+
+## Phase 9: Extended Datasources
+**Status: 🔴 Not Started**
+
+### Remaining Cloud Providers
+- [ ] CloudStack
+- [ ] SmartOS (Joyent)
+- [ ] VMware (GuestInfo, OVF)
+- [ ] LXD
+- [ ] MAAS
+- [ ] Exoscale
+- [ ] CloudSigma
+- [ ] Bigstep
+- [ ] IBMCloud
+- [ ] UpCloud
+
+### Specialized Datasources
+- [ ] AliYun (Alibaba Cloud)
+- [ ] RbxCloud
+- [ ] Vagrant
+- [ ] WSL (Windows Subsystem for Linux)
+- [ ] NWCS (Nifty Cloud)
+
+## Phase 10: Distribution-Specific Modules
+**Status: 🔴 Not Started**
+
+### Debian/Ubuntu Specific
+- [ ] `apt_configure` - Full APT configuration
+- [ ] `apt_pipelining` - APT pipelining settings
+- [ ] `apt_source` - APT source management
+- [ ] `grub_dpkg` - GRUB configuration
+- [ ] `landscape` - Landscape integration
+- [ ] `fan` - Ubuntu Fan networking
+- [ ] `ubuntu_advantage` - Ubuntu Pro/Advantage
+- [ ] `ubuntu_drivers` - Ubuntu drivers
+
+### RHEL/CentOS Specific
+- [ ] `rh_subscription` - Red Hat subscription
+- [ ] `yum_add_repo` - Full YUM repo management
+
+### SUSE Specific
+- [ ] `zypper_add_repo` - Zypper repositories
+- [ ] `zypper_configure` - Zypper configuration
+
+### FreeBSD Specific
+- [ ] FreeBSD network configuration
+- [ ] FreeBSD package management
+
+## Phase 11: Configuration Management Integration
+**Status: 🔴 Not Started**
+
+### Chef Integration
+- [ ] `chef` module - Chef client bootstrap
+- [ ] Chef validation key handling
+- [ ] Chef environment configuration
+
+### Puppet Integration
+- [ ] `puppet` module - Puppet agent bootstrap
+- [ ] Puppet certificate handling
+- [ ] Puppet environment configuration
+
+### Ansible Integration
+- [ ] `ansible` module - Ansible pull mode
+- [ ] Ansible playbook execution
+
+### Salt Integration
+- [ ] `salt_minion` module - Salt minion bootstrap
+- [ ] Salt master configuration
+- [ ] Salt grains and pillars
+
+## Phase 12: Legacy & Deprecated Features
+**Status: 🔴 Not Started**
+
+### Legacy Init Systems
+- [ ] `emit_upstart` - Upstart event emission
+- [ ] SysV init script support
+
+### Deprecated but Supported
+- [ ] `mcollective` - MCollective configuration (deprecated)
+- [ ] `rightscale_userdata` - RightScale format
+- [ ] `byobu` - Byobu configuration
+
+### Backwards Compatibility
+- [ ] cloud-config v1 format quirks
+- [ ] Legacy datasource formats
+- [ ] Python cloud-init bug-for-bug compatibility mode
+
+## Phase 13: Full Test Parity
+**Status: 🔴 Not Started**
+
+### Python cloud-init Test Suite
+- [ ] Port all unit tests from Python cloud-init
+- [ ] Port all integration tests
+- [ ] Achieve 95%+ test coverage
+- [ ] Fuzz testing for config parsing
+
+### Certification Testing
+- [ ] AWS certification tests
+- [ ] Azure certification tests
+- [ ] GCE certification tests
+- [ ] OpenStack certification tests
+
+### Edge Cases
+- [ ] Malformed user-data handling (match Python behavior)
+- [ ] Network timeout edge cases
+- [ ] Filesystem permission edge cases
+- [ ] Unicode handling parity
+
+---
 
 ## Version Milestones
 
@@ -323,3 +425,16 @@ The following features are explicitly out of scope for the 80% compatibility tar
 - Production-ready packaging
 - 80% test coverage
 - Published to crates.io
+
+### v1.5.0
+- Extended datasources (VMware, LXD, MAAS, etc.)
+- Distribution-specific modules (apt_configure, rh_subscription)
+- 90% test coverage
+
+### v2.0.0 (100% Compatibility)
+- Configuration management integration (Chef, Puppet, Salt, Ansible)
+- Legacy/deprecated feature support
+- Full Python cloud-init test suite parity
+- 95% test coverage
+- Cloud provider certification
+- Bug-for-bug compatibility mode
