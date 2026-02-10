@@ -1,7 +1,7 @@
 //! Azure IMDS datasource
 //!
 //! Fetches metadata from Azure Instance Metadata Service (IMDS).
-//! https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
+//! <https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service>
 
 use async_trait::async_trait;
 use reqwest::Client;

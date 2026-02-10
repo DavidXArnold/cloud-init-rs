@@ -1,7 +1,7 @@
 //! OpenStack datasource
 //!
 //! Fetches metadata from OpenStack metadata service or config-drive.
-//! https://docs.openstack.org/nova/latest/user/metadata.html
+//! <https://docs.openstack.org/nova/latest/user/metadata.html>
 
 use async_trait::async_trait;
 use reqwest::Client;

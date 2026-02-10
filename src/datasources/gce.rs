@@ -1,7 +1,7 @@
 //! GCE (Google Compute Engine) datasource
 //!
 //! Fetches metadata from the GCE metadata server.
-//! https://cloud.google.com/compute/docs/metadata/overview
+//! <https://cloud.google.com/compute/docs/metadata/overview>
 
 use async_trait::async_trait;
 use reqwest::Client;
