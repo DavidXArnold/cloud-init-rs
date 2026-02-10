@@ -138,9 +138,9 @@ Test coverage is critical for a system-level tool. Tests should be written along
 ### High Priority (80% of cloud deployments)
 - [x] NoCloud (local files, ISO)
 - [x] EC2 (AWS) - IMDSv1 and IMDSv2
-- [ ] GCE (Google Cloud Platform)
-- [ ] Azure (IMDS)
-- [ ] OpenStack (config-drive and metadata service)
+- [x] GCE (Google Cloud Platform)
+- [x] Azure (IMDS)
+- [x] OpenStack (config-drive and metadata service)
 
 ### Medium Priority
 - [ ] Oracle Cloud Infrastructure
@@ -257,12 +257,77 @@ Test coverage is critical for a system-level tool. Tests should be written along
 
 ## Phase 7: Compatibility Validation
 
+### Cloud Provider Integration Tests
+Comprehensive end-to-end testing on real cloud infrastructure.
+
+#### AWS/EC2 Integration Tests
+- [ ] IMDSv1 metadata retrieval
+- [ ] IMDSv2 with token-based auth
+- [ ] Instance identity document validation
+- [ ] User-data retrieval (plain, base64, gzip)
+- [ ] SSH key injection and verification
+- [ ] Spot instance metadata handling
+- [ ] Multiple network interface metadata
+- [ ] Instance tags via metadata
+- [ ] IAM role credential retrieval
+- [ ] Placement group and availability zone detection
+
+#### GCE Integration Tests
+- [ ] Metadata server connectivity (metadata.google.internal)
+- [ ] Project-level vs instance-level metadata
+- [ ] Startup-script execution
+- [ ] User-data (custom metadata) retrieval
+- [ ] SSH key injection via metadata
+- [ ] Service account token retrieval
+- [ ] Network interface metadata
+- [ ] Instance scheduling metadata
+- [ ] Preemptible instance detection
+- [ ] Zone and region extraction
+
+#### Azure Integration Tests
+- [ ] IMDS endpoint connectivity (169.254.169.254)
+- [ ] Instance metadata (vmId, location, vmSize)
+- [ ] Custom data retrieval and base64 decoding
+- [ ] SSH key injection
+- [ ] Managed identity token retrieval
+- [ ] Availability zone detection
+- [ ] Virtual network metadata
+- [ ] Scheduled events handling
+- [ ] Attestation data retrieval
+- [ ] Tag metadata access
+
+#### OpenStack Integration Tests
+- [ ] Config-drive detection and mounting
+- [ ] Config-drive metadata parsing (meta_data.json)
+- [ ] Config-drive user-data retrieval
+- [ ] HTTP metadata service fallback
+- [ ] Network configuration (network_data.json)
+- [ ] Vendor-data handling
+- [ ] Instance UUID and hostname
+- [ ] SSH key injection
+- [ ] Availability zone metadata
+- [ ] Nova vs Ironic metadata differences
+
+#### Cross-Cloud Validation
+- [ ] Consistent InstanceMetadata across providers
+- [ ] UserData parsing consistency
+- [ ] Cloud-config execution parity
+- [ ] Error handling consistency
+- [ ] Timeout behavior validation
+
+### Local/Mock Testing Infrastructure
+- [ ] QEMU/KVM test harness
+- [ ] Docker-based metadata service mocks
+- [ ] Vagrant multi-provider tests
+- [ ] LocalStack for AWS testing
+- [ ] Fake GCE metadata server
+- [ ] Azure metadata emulator
+
 ### Compatibility Testing
 - [ ] cloud-init test suite adaptation
 - [ ] Parity testing with Python cloud-init
 - [ ] Real VM tests (QEMU/KVM)
 - [ ] Container tests (Docker, Podman)
-- [ ] Cloud provider testing (AWS, GCE, Azure)
 
 ### Regression Testing
 - [ ] Automated nightly test runs
