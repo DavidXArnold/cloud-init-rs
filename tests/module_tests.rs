@@ -282,9 +282,9 @@ ssh_authorized_keys:
 /// Test authorized_keys file format
 #[test]
 fn test_authorized_keys_file_format() {
-    let keys = vec![
-        "ssh-rsa AAAAB3... user1@host".to_string(),
-        "ssh-ed25519 AAAAC3... user2@host".to_string(),
+    let keys = [
+        "ssh-rsa AAAAB3... user1@host",
+        "ssh-ed25519 AAAAC3... user2@host",
     ];
 
     let file_content = keys.join("\n");
@@ -328,7 +328,7 @@ fn test_useradd_command_generation() {
     let shell = "/bin/bash";
     let homedir = "/home/testuser";
     let gecos = "Test User";
-    let groups = vec!["sudo", "docker"];
+    let groups = ["sudo", "docker"];
 
     // Build useradd command
     let mut cmd = vec!["useradd".to_string()];
