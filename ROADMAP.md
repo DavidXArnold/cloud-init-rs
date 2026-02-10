@@ -2,7 +2,7 @@
 
 This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 
-## Phase 1: Core Infrastructure (Current)
+## Phase 1: Core Infrastructure
 **Status: ✅ Complete**
 
 - [x] Project structure and build system
@@ -12,7 +12,65 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [x] Logging with `tracing`
 - [x] Cloud-config YAML parsing basics
 
-## Phase 2: Test Infrastructure (High Priority)
+## Phase 2: GitHub & CI/CD
+**Status: 🔴 Not Started**
+
+### Repository Setup
+- [ ] Create GitHub repository
+- [ ] Configure branch protection (main)
+- [ ] Add issue templates
+- [ ] Add PR template
+- [ ] Add CONTRIBUTING.md
+- [ ] Add CODE_OF_CONDUCT.md
+
+### CI Workflow (on every PR and push to main)
+- [ ] `ci.yml` - Main CI pipeline
+  - [ ] Run on ubuntu-latest, macos-latest
+  - [ ] Matrix test with stable + MSRV (1.75)
+  - [ ] `cargo fmt --check`
+  - [ ] `cargo clippy -- -D warnings`
+  - [ ] `cargo test`
+  - [ ] `cargo build --release`
+  - [ ] Upload test artifacts on failure
+
+### Coverage Workflow
+- [ ] `coverage.yml` - Code coverage reporting
+  - [ ] Use cargo-llvm-cov or tarpaulin
+  - [ ] Upload to Codecov or Coveralls
+  - [ ] Coverage badge in README
+  - [ ] Fail PR if coverage drops below threshold
+
+### Release Workflow
+- [ ] `release.yml` - Automated releases
+  - [ ] Trigger on tag push (v*.*.*)
+  - [ ] Build release binaries for:
+    - [ ] x86_64-unknown-linux-gnu
+    - [ ] x86_64-unknown-linux-musl (static)
+    - [ ] aarch64-unknown-linux-gnu
+    - [ ] x86_64-apple-darwin
+    - [ ] aarch64-apple-darwin
+  - [ ] Create GitHub Release with changelog
+  - [ ] Upload binary artifacts
+  - [ ] Generate checksums (SHA256)
+
+### Publish Workflow
+- [ ] `publish.yml` - Crates.io publishing
+  - [ ] Trigger on GitHub Release
+  - [ ] `cargo publish` to crates.io
+  - [ ] Verify version matches tag
+
+### Security
+- [ ] `audit.yml` - Security scanning
+  - [ ] Run `cargo audit` weekly
+  - [ ] Run on every PR
+  - [ ] Dependabot for dependency updates
+
+### Documentation
+- [ ] `docs.yml` - Documentation deployment
+  - [ ] Build rustdoc
+  - [ ] Deploy to GitHub Pages
+
+## Phase 3: Test Infrastructure (High Priority)
 **Status: 🔴 Not Started**
 
 Test coverage is critical for a system-level tool. Tests should be written alongside features.
@@ -57,7 +115,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] 70% line coverage for `src/modules/`
 - [ ] CI integration with coverage reporting
 
-## Phase 3: Datasources
+## Phase 4: Datasources
 **Status: 🔄 In Progress**
 
 ### High Priority (80% of cloud deployments)
@@ -81,7 +139,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] LXD
 - [ ] MAAS
 
-## Phase 4: Configuration Modules
+## Phase 5: Configuration Modules
 **Status: 🔄 In Progress**
 
 ### Users and Groups (High Priority)
@@ -155,7 +213,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] `scripts_user` - User scripts
 - [ ] `scripts_vendor` - Vendor scripts
 
-## Phase 5: Advanced Features
+## Phase 6: Advanced Features
 
 ### Multi-part MIME
 - [ ] Parse multipart user-data
@@ -180,7 +238,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] Per-instance vs per-boot markers
 - [ ] sem/ semaphore files
 
-## Phase 6: Compatibility Validation
+## Phase 7: Compatibility Validation
 
 ### Compatibility Testing
 - [ ] cloud-init test suite adaptation
@@ -194,7 +252,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] Performance benchmarks vs Python cloud-init
 - [ ] Boot time measurements
 
-## Phase 7: Production Readiness
+## Phase 8: Production Readiness
 
 ### Packaging
 - [ ] Debian/Ubuntu packages
@@ -235,16 +293,24 @@ The following features are explicitly out of scope for the 80% compatibility tar
 - NoCloud and EC2 datasources
 - Simple cloud-config parsing
 
-### v0.2.0 (Next)
+### v0.1.1 (Next)
+- GitHub repository setup
+- CI/CD workflows (test, lint, build)
+- Basic test coverage
+- Release automation
+
+### v0.2.0
 - Full user/group management
 - write_files with all encodings
 - runcmd with proper error handling
 - GCE and Azure datasources
+- 60% test coverage
 
 ### v0.3.0
 - Package management (apt, yum)
 - Network configuration
 - Disk/filesystem modules
+- 70% test coverage
 
 ### v0.4.0
 - Multi-part MIME support
@@ -255,4 +321,5 @@ The following features are explicitly out of scope for the 80% compatibility tar
 - 80% module compatibility
 - All major cloud datasources
 - Production-ready packaging
-- Comprehensive testing
+- 80% test coverage
+- Published to crates.io
