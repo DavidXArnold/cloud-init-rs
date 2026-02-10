@@ -2,7 +2,7 @@
 name = "cloud-init-rs"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 authors = ["cloud-init-rs contributors"]
 description = "A safe Rust implementation of cloud-init focused on fast boot times"
 license = "Apache-2.0"
@@ -52,7 +52,7 @@ multipart = { version = "0.18", default-features = false, features = ["server"] 
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3"
-wiremock = "0.5"  # Pinned to 0.5.x for MSRV 1.75 compatibility (0.6 requires edition 2024)
+wiremock = "0.6"
 assert_fs = "1"
 predicates = "3"
 
