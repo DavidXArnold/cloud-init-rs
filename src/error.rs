@@ -27,7 +27,7 @@ pub enum CloudInitError {
     Json(#[from] serde_json::Error),
 
     #[error("HTTP error: {0}")]
-    Http(String),
+    Http(#[from] reqwest::Error),
 
     #[error("Module error in '{module}': {message}")]
     Module { module: String, message: String },

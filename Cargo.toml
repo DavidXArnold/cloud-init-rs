@@ -2,7 +2,7 @@
 name = "cloud-init-rs"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75"
 authors = ["cloud-init-rs contributors"]
 description = "A safe Rust implementation of cloud-init focused on fast boot times"
 license = "Apache-2.0"
@@ -10,31 +10,49 @@ repository = "https://github.com/your-org/cloud-init-rs"
 keywords = ["cloud-init", "cloud", "provisioning", "infrastructure"]
 categories = ["command-line-utilities", "config"]
 
+# Enforce no unsafe code
+[lints.rust]
+unsafe_code = "forbid"
+
 [dependencies]
 # Async runtime
-tokio = { version = "=1.32.0", features = ["rt", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "macros"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "macros"] }
 
 # Serialization for cloud-config YAML and JSON metadata
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "=0.9.25"
-serde_json = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
 
 # Error handling
-thiserror = "1.0"
-anyhow = "1.0"
+thiserror = "2"
+anyhow = "1"
 
 # Logging and tracing
 tracing = "0.1"
-tracing-subscriber = { version = "=0.3.17", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# HTTP client for cloud metadata services (rustls for safety, no OpenSSL)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "charset"] }
 
 # Command line parsing
-clap = { version = "=4.4.0", features = ["derive"] }
+clap = { version = "4", features = ["derive", "env"] }
 
 # Base64 for userdata decoding
-base64 = "=0.21.0"
+base64 = "0.22"
 
-# Async trait support
+# Gzip decompression for compressed userdata
+flate2 = "1"
+
+# Async trait support (needed for dyn-compatible async traits)
 async-trait = "0.1"
+
+# MIME multipart parsing for cloud-init multipart userdata
+multipart = { version = "0.18", default-features = false, features = ["server"] }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"
+wiremock = "0.6"
 
 [profile.release]
 lto = true
