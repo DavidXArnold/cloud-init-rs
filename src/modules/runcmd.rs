@@ -1,7 +1,7 @@
 //! Runcmd module - execute commands from cloud-config
 
-use crate::config::RunCmd;
 use crate::CloudInitError;
+use crate::config::RunCmd;
 use tracing::{debug, info, warn};
 
 /// Execute runcmd directives

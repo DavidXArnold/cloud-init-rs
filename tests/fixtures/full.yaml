@@ -1,0 +1,54 @@
+#cloud-config
+hostname: production-server
+fqdn: production-server.example.com
+manage_etc_hosts: true
+timezone: UTC
+locale: en_US.UTF-8
+
+users:
+  - default
+  - name: deploy
+    gecos: Deploy User
+    groups:
+      - sudo
+      - docker
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3NzaC1... deploy@company.com
+
+groups:
+  - docker
+
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1... admin@company.com
+
+package_update: true
+package_upgrade: false
+packages:
+  - docker-ce
+  - docker-compose
+  - nginx
+  - certbot
+
+write_files:
+  - path: /etc/docker/daemon.json
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "10m",
+          "max-file": "3"
+        }
+      }
+    permissions: '0644'
+
+runcmd:
+  - systemctl enable docker
+  - systemctl start docker
+  - [docker, pull, nginx:latest]
+
+final_message: |
+  Cloud-init completed!
+  Hostname: $HOSTNAME
+  Uptime: $UPTIME

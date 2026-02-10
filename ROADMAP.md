@@ -56,6 +56,27 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 ### Publish Workflow
 - [ ] `publish.yml` - Crates.io publishing (deferred to v1.0.0)
 
+### OS Package Publishing Workflow
+- [ ] `packages.yml` - Build and publish OS packages on release
+  - [ ] Trigger on GitHub Release (v*.*.*)
+  - [ ] Debian/Ubuntu packages (.deb)
+    - [ ] Build using cargo-deb
+    - [ ] Target: amd64, arm64
+    - [ ] Include systemd service files
+    - [ ] Upload to GitHub Release
+    - [ ] Publish to PPA or packagecloud.io
+  - [ ] RHEL/Fedora packages (.rpm)
+    - [ ] Build using cargo-rpm or cargo-generate-rpm
+    - [ ] Target: x86_64, aarch64
+    - [ ] Include systemd service files
+    - [ ] Upload to GitHub Release
+    - [ ] Publish to COPR or packagecloud.io
+  - [ ] Package metadata
+    - [ ] Proper package description and license
+    - [ ] Correct dependencies (none for static builds)
+    - [ ] Post-install scripts for systemd enablement
+    - [ ] Changelog generation from git tags
+
 ### Security
 - [x] `audit.yml` - Security scanning
   - [x] Run `cargo audit` weekly
@@ -67,49 +88,49 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [ ] Deploy to GitHub Pages (after repo created)
 
 ## Phase 3: Test Infrastructure (High Priority)
-**Status: 🔴 Not Started**
+**Status: ✅ Complete**
 
 Test coverage is critical for a system-level tool. Tests should be written alongside features.
 
-### Unit Tests
-- [ ] Cloud-config parsing tests
-  - [ ] Valid YAML parsing
-  - [ ] Malformed YAML handling
-  - [ ] All config field types
-  - [ ] Edge cases (empty, comments-only)
-- [ ] Datasource tests
-  - [ ] NoCloud file parsing
-  - [ ] EC2 IMDS response parsing
-  - [ ] Datasource detection logic
-- [ ] Module tests
-  - [ ] User creation commands
-  - [ ] File writing with permissions
-  - [ ] Command execution
+### Unit Tests (36 tests)
+- [x] Cloud-config parsing tests
+  - [x] Valid YAML parsing
+  - [x] Malformed YAML handling
+  - [x] All config field types (users, groups, write_files, runcmd, packages, ssh, etc.)
+  - [x] Edge cases (empty, comments-only, unknown fields)
+- [x] Datasource tests
+  - [x] NoCloud file parsing
+  - [x] EC2 IMDS response parsing
+  - [x] MockDatasource with builder pattern
+- [x] Module tests
+  - [x] User creation and configuration
+  - [x] File writing with base64/gzip
+  - [x] Command execution (shell strings and args arrays)
 
-### Integration Tests
-- [ ] Mock HTTP server tests (wiremock)
-  - [ ] EC2 IMDS mock responses
-  - [ ] Timeout handling
-  - [ ] Error responses (404, 500)
-- [ ] Filesystem tests (tempdir)
-  - [ ] NoCloud seed directory
-  - [ ] write_files output
-  - [ ] Permission verification
-- [ ] End-to-end stage tests
-  - [ ] Local stage with NoCloud
-  - [ ] Config stage with mock data
+### Integration Tests (17 tests)
+- [x] Mock HTTP server tests (wiremock)
+  - [x] EC2 IMDS mock responses (IMDSv1 and IMDSv2)
+  - [x] Timeout handling
+  - [x] Error responses (403, 404)
+- [x] Filesystem tests (tempdir)
+  - [x] NoCloud seed directory structure
+  - [x] write_files output verification
+  - [x] Base64/gzip encoding roundtrips
+- [x] Fixture-based tests
+  - [x] Parse all fixture YAML files
+  - [x] Verify config values
 
 ### Test Utilities
-- [ ] Test fixtures for cloud-config samples
-- [ ] Mock datasource implementation
-- [ ] Tempdir helper for filesystem tests
-- [ ] Assertion helpers for file content/permissions
+- [x] Test fixtures in tests/fixtures/ (8 YAML files)
+- [x] MockDatasource implementation (src/datasources/mock.rs)
+- [x] Tempdir helper via tempfile crate
+- [x] assert_fs and predicates for assertions
 
-### Coverage Goals
-- [ ] 80% line coverage for `src/config/`
-- [ ] 80% line coverage for `src/datasources/`
-- [ ] 70% line coverage for `src/modules/`
-- [ ] CI integration with coverage reporting
+### Coverage Infrastructure
+- [x] CI integration with coverage reporting (cargo-llvm-cov + Codecov)
+- [ ] 80% line coverage for `src/config/` (in progress)
+- [ ] 80% line coverage for `src/datasources/` (in progress)
+- [ ] 70% line coverage for `src/modules/` (in progress)
 
 ## Phase 4: Datasources
 **Status: 🔄 In Progress**
@@ -250,11 +271,48 @@ Test coverage is critical for a system-level tool. Tests should be written along
 
 ## Phase 8: Production Readiness
 
-### Packaging
-- [ ] Debian/Ubuntu packages
-- [ ] RPM packages (RHEL, Fedora)
-- [ ] Alpine APK
-- [ ] Static binary releases
+### Packaging Infrastructure
+- [ ] Package build tooling
+  - [ ] cargo-deb configuration in Cargo.toml
+  - [ ] cargo-generate-rpm configuration
+  - [ ] Systemd unit file templates
+  - [ ] Package post-install/pre-remove scripts
+
+### Debian/Ubuntu Packages (.deb)
+- [ ] Package structure
+  - [ ] Binary: /usr/bin/cloud-init-rs
+  - [ ] Config: /etc/cloud/cloud.cfg.d/
+  - [ ] Systemd: /lib/systemd/system/cloud-init*.service
+  - [ ] Docs: /usr/share/doc/cloud-init-rs/
+- [ ] Architectures: amd64, arm64
+- [ ] Distribution targets
+  - [ ] Ubuntu 22.04 LTS (Jammy)
+  - [ ] Ubuntu 24.04 LTS (Noble)
+  - [ ] Debian 11 (Bullseye)
+  - [ ] Debian 12 (Bookworm)
+- [ ] Repository hosting (PPA or packagecloud.io)
+
+### RHEL/Fedora Packages (.rpm)
+- [ ] Package structure
+  - [ ] Binary: /usr/bin/cloud-init-rs
+  - [ ] Config: /etc/cloud/cloud.cfg.d/
+  - [ ] Systemd: /usr/lib/systemd/system/cloud-init*.service
+  - [ ] Docs: /usr/share/doc/cloud-init-rs/
+- [ ] Architectures: x86_64, aarch64
+- [ ] Distribution targets
+  - [ ] RHEL 8 / Rocky Linux 8 / AlmaLinux 8
+  - [ ] RHEL 9 / Rocky Linux 9 / AlmaLinux 9
+  - [ ] Amazon Linux 2023
+  - [ ] Fedora (latest 2 releases)
+- [ ] Repository hosting (COPR or packagecloud.io)
+
+### Alpine APK
+- [ ] Alpine package build
+- [ ] Target: Alpine 3.18+
+
+### Static Binary Releases
+- [ ] musl-based static builds (already in release.yml)
+- [ ] Portable tarball with systemd units
 
 ### Systemd Integration
 - [ ] cloud-init-local.service

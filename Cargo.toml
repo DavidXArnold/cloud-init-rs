@@ -1,8 +1,8 @@
 [package]
 name = "cloud-init-rs"
 version = "0.1.0"
-edition = "2021"
-rust-version = "1.75"
+edition = "2024"
+rust-version = "1.88"
 authors = ["cloud-init-rs contributors"]
 description = "A safe Rust implementation of cloud-init focused on fast boot times"
 license = "Apache-2.0"

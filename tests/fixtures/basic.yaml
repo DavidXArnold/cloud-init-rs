@@ -1,0 +1,6 @@
+#cloud-config
+hostname: test-instance
+fqdn: test-instance.example.com
+manage_etc_hosts: true
+timezone: America/New_York
+locale: en_US.UTF-8

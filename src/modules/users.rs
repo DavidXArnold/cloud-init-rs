@@ -1,7 +1,7 @@
 //! User creation and configuration module
 
-use crate::config::{UserConfig, UserFullConfig};
 use crate::CloudInitError;
+use crate::config::{UserConfig, UserFullConfig};
 use tracing::{debug, info};
 
 /// Create users from cloud-config

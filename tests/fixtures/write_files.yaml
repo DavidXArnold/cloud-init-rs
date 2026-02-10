@@ -1,0 +1,16 @@
+#cloud-config
+write_files:
+  - path: /etc/myapp/config.yaml
+    content: |
+      server:
+        port: 8080
+        host: 0.0.0.0
+    owner: root:root
+    permissions: '0644'
+  - path: /opt/setup.sh
+    content: IyEvYmluL2Jhc2gKZWNobyAiSGVsbG8gV29ybGQi
+    encoding: base64
+    permissions: '0755'
+  - path: /etc/motd
+    content: Welcome to the server!
+    append: true
