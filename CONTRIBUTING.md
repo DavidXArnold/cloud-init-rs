@@ -14,7 +14,7 @@ Thank you for your interest in contributing to cloud-init-rs!
 ## Development Setup
 
 ### Prerequisites
-- Rust 1.75 or later
+- Rust 1.85 or later
 - cargo
 
 ### Building
