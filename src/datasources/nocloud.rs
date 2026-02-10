@@ -53,10 +53,10 @@ impl NoCloud {
 
         for mount in possible_mounts {
             let path = Path::new(mount);
-            if let Ok(metadata) = fs::metadata(path.join("meta-data")).await {
-                if metadata.is_file() {
-                    return Some(path.to_path_buf());
-                }
+            if let Ok(metadata) = fs::metadata(path.join("meta-data")).await
+                && metadata.is_file()
+            {
+                return Some(path.to_path_buf());
             }
         }
 
@@ -99,14 +99,14 @@ impl Datasource for NoCloud {
         };
 
         // Parse meta-data YAML
-        if let Some(content) = self.read_file(&seed_dir, "meta-data").await {
-            if let Ok(parsed) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
-                if let Some(id) = parsed.get("instance-id").and_then(|v| v.as_str()) {
-                    metadata.instance_id = Some(id.to_string());
-                }
-                if let Some(hostname) = parsed.get("local-hostname").and_then(|v| v.as_str()) {
-                    metadata.local_hostname = Some(hostname.to_string());
-                }
+        if let Some(content) = self.read_file(&seed_dir, "meta-data").await
+            && let Ok(parsed) = serde_yaml::from_str::<serde_yaml::Value>(&content)
+        {
+            if let Some(id) = parsed.get("instance-id").and_then(|v| v.as_str()) {
+                metadata.instance_id = Some(id.to_string());
+            }
+            if let Some(hostname) = parsed.get("local-hostname").and_then(|v| v.as_str()) {
+                metadata.local_hostname = Some(hostname.to_string());
             }
         }
 
