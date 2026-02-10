@@ -77,6 +77,7 @@ pub struct InstanceMetadata {
     pub availability_zone: Option<String>,
     pub cloud_name: Option<String>,
     pub platform: Option<String>,
+    pub instance_type: Option<String>,
 }
 
 /// User data (cloud-config or script)
