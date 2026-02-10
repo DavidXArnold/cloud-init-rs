@@ -1,0 +1,6 @@
+#cloud-config
+runcmd:
+  - echo "Hello from cloud-init"
+  - [mkdir, -p, /opt/myapp]
+  - ["bash", "-c", "echo 'test' > /tmp/output"]
+  - systemctl enable nginx

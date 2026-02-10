@@ -3,6 +3,7 @@
 //! Datasources provide instance metadata and user data from cloud providers.
 
 pub mod ec2;
+pub mod mock;
 pub mod nocloud;
 
 use crate::{CloudInitError, InstanceMetadata, UserData};

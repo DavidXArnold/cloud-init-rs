@@ -182,6 +182,8 @@ impl CloudConfig {
 mod tests {
     use super::*;
 
+    // ==================== Basic Parsing Tests ====================
+
     #[test]
     fn test_parse_simple_cloud_config() {
         let yaml = r#"
@@ -203,5 +205,441 @@ packages:
         ));
         assert!(CloudConfig::is_cloud_config("  #cloud-config\n"));
         assert!(!CloudConfig::is_cloud_config("#!/bin/bash\necho hello"));
+        assert!(!CloudConfig::is_cloud_config(""));
+        assert!(!CloudConfig::is_cloud_config("hostname: test"));
+    }
+
+    #[test]
+    fn test_parse_without_header() {
+        let yaml = "hostname: test-instance\nlocale: en_US.UTF-8";
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.hostname, Some("test-instance".to_string()));
+        assert_eq!(config.locale, Some("en_US.UTF-8".to_string()));
+    }
+
+    #[test]
+    fn test_parse_empty_config() {
+        let yaml = "#cloud-config\n";
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config.hostname.is_none());
+        assert!(config.packages.is_empty());
+    }
+
+    #[test]
+    fn test_parse_comments_only() {
+        let yaml = "#cloud-config\n# comment\n# another comment";
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config.hostname.is_none());
+    }
+
+    // ==================== System Configuration Tests ====================
+
+    #[test]
+    fn test_parse_hostname_config() {
+        let yaml = r#"
+#cloud-config
+hostname: my-server
+fqdn: my-server.example.com
+manage_etc_hosts: true
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.hostname, Some("my-server".to_string()));
+        assert_eq!(config.fqdn, Some("my-server.example.com".to_string()));
+        assert_eq!(config.manage_etc_hosts, Some(true));
+    }
+
+    #[test]
+    fn test_parse_timezone_locale() {
+        let yaml = r#"
+#cloud-config
+timezone: America/New_York
+locale: en_US.UTF-8
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.timezone, Some("America/New_York".to_string()));
+        assert_eq!(config.locale, Some("en_US.UTF-8".to_string()));
+    }
+
+    // ==================== User Configuration Tests ====================
+
+    #[test]
+    fn test_parse_simple_user() {
+        let yaml = r#"
+#cloud-config
+users:
+  - testuser
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.users.len(), 1);
+        match &config.users[0] {
+            UserConfig::Name(name) => assert_eq!(name, "testuser"),
+            _ => panic!("Expected simple user name"),
+        }
+    }
+
+    #[test]
+    fn test_parse_full_user() {
+        let yaml = r#"
+#cloud-config
+users:
+  - name: deploy
+    gecos: Deploy User
+    shell: /bin/bash
+    groups:
+      - sudo
+      - docker
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3... key1
+      - ssh-ed25519 AAAAC3... key2
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.users.len(), 1);
+        match &config.users[0] {
+            UserConfig::Full(user) => {
+                assert_eq!(user.name, "deploy");
+                assert_eq!(user.gecos, Some("Deploy User".to_string()));
+                assert_eq!(user.shell, Some("/bin/bash".to_string()));
+                assert_eq!(user.groups, vec!["sudo", "docker"]);
+                assert_eq!(user.sudo, Some("ALL=(ALL) NOPASSWD:ALL".to_string()));
+                assert_eq!(user.lock_passwd, Some(true));
+                assert_eq!(user.ssh_authorized_keys.len(), 2);
+            }
+            _ => panic!("Expected full user config"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mixed_users() {
+        let yaml = r#"
+#cloud-config
+users:
+  - default
+  - name: admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.users.len(), 2);
+        assert!(matches!(&config.users[0], UserConfig::Name(n) if n == "default"));
+        assert!(matches!(&config.users[1], UserConfig::Full(_)));
+    }
+
+    // ==================== Group Configuration Tests ====================
+
+    #[test]
+    fn test_parse_simple_group() {
+        let yaml = r#"
+#cloud-config
+groups:
+  - docker
+  - admin
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.groups.len(), 2);
+    }
+
+    // ==================== Write Files Tests ====================
+
+    #[test]
+    fn test_parse_write_files() {
+        let yaml = r#"
+#cloud-config
+write_files:
+  - path: /etc/myconfig.yaml
+    content: |
+      key: value
+    owner: root:root
+    permissions: '0644'
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.write_files.len(), 1);
+        let file = &config.write_files[0];
+        assert_eq!(file.path, "/etc/myconfig.yaml");
+        assert_eq!(file.owner, Some("root:root".to_string()));
+        assert_eq!(file.permissions, Some("0644".to_string()));
+        assert!(file.content.contains("key: value"));
+    }
+
+    #[test]
+    fn test_parse_write_files_base64() {
+        let yaml = r#"
+#cloud-config
+write_files:
+  - path: /opt/script.sh
+    content: IyEvYmluL2Jhc2gKZWNobyBoZWxsbw==
+    encoding: base64
+    permissions: '0755'
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let file = &config.write_files[0];
+        assert_eq!(file.encoding, Some("base64".to_string()));
+    }
+
+    #[test]
+    fn test_parse_write_files_append() {
+        let yaml = r#"
+#cloud-config
+write_files:
+  - path: /etc/motd
+    content: Welcome!
+    append: true
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.write_files[0].append, Some(true));
+    }
+
+    #[test]
+    fn test_parse_write_files_defer() {
+        let yaml = r#"
+#cloud-config
+write_files:
+  - path: /etc/late-config
+    content: deferred content
+    defer: true
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.write_files[0].defer, Some(true));
+    }
+
+    // ==================== Runcmd Tests ====================
+
+    #[test]
+    fn test_parse_runcmd_strings() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+  - apt-get update
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.runcmd.len(), 2);
+        assert!(matches!(&config.runcmd[0], RunCmd::Shell(s) if s == "echo hello"));
+    }
+
+    #[test]
+    fn test_parse_runcmd_arrays() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - [mkdir, -p, /opt/myapp]
+  - ["bash", "-c", "echo test"]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.runcmd.len(), 2);
+        match &config.runcmd[0] {
+            RunCmd::Args(args) => {
+                assert_eq!(args, &vec!["mkdir", "-p", "/opt/myapp"]);
+            }
+            _ => panic!("Expected args array"),
+        }
+    }
+
+    #[test]
+    fn test_parse_runcmd_mixed() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo "shell command"
+  - [docker, run, nginx]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.runcmd.len(), 2);
+        assert!(matches!(&config.runcmd[0], RunCmd::Shell(_)));
+        assert!(matches!(&config.runcmd[1], RunCmd::Args(_)));
+    }
+
+    // ==================== Package Tests ====================
+
+    #[test]
+    fn test_parse_packages() {
+        let yaml = r#"
+#cloud-config
+package_update: true
+package_upgrade: false
+packages:
+  - nginx
+  - vim
+  - htop
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.package_update, Some(true));
+        assert_eq!(config.package_upgrade, Some(false));
+        assert_eq!(config.packages, vec!["nginx", "vim", "htop"]);
+    }
+
+    // ==================== SSH Configuration Tests ====================
+
+    #[test]
+    fn test_parse_ssh_keys() {
+        let yaml = r#"
+#cloud-config
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3... admin@host
+  - ssh-ed25519 AAAAC3... user@host
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.ssh_authorized_keys.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_ssh_config() {
+        let yaml = r#"
+#cloud-config
+ssh:
+  emit_keys_to_console: false
+  ssh_authorized_keys:
+    - ssh-rsa AAAAB3... key
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let ssh = config.ssh.unwrap();
+        assert_eq!(ssh.emit_keys_to_console, Some(false));
+        assert_eq!(ssh.ssh_authorized_keys.len(), 1);
+    }
+
+    // ==================== Advanced Configuration Tests ====================
+
+    #[test]
+    fn test_parse_growpart() {
+        let yaml = r#"
+#cloud-config
+growpart:
+  mode: auto
+  devices:
+    - /
+    - /dev/sda1
+  ignore_growroot_disabled: false
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let growpart = config.growpart.unwrap();
+        assert_eq!(growpart.mode, Some("auto".to_string()));
+        assert_eq!(growpart.devices.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_parse_resize_rootfs() {
+        let yaml = r#"
+#cloud-config
+resize_rootfs: true
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.resize_rootfs, Some(true));
+    }
+
+    #[test]
+    fn test_parse_phone_home() {
+        let yaml = r#"
+#cloud-config
+phone_home:
+  url: https://example.com/phone-home
+  post:
+    - instance_id
+    - hostname
+  tries: 10
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let phone_home = config.phone_home.unwrap();
+        assert_eq!(phone_home.url, "https://example.com/phone-home");
+        assert_eq!(phone_home.tries, Some(10));
+    }
+
+    #[test]
+    fn test_parse_final_message() {
+        let yaml = r#"
+#cloud-config
+final_message: |
+  Cloud-init completed!
+  Hostname: $HOSTNAME
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config
+            .final_message
+            .unwrap()
+            .contains("Cloud-init completed"));
+    }
+
+    // ==================== Error Handling Tests ====================
+
+    #[test]
+    fn test_parse_malformed_yaml() {
+        let yaml = "#cloud-config\nhostname: [invalid";
+        let result = CloudConfig::from_yaml(yaml);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_wrong_type() {
+        let yaml = r#"
+#cloud-config
+hostname:
+  nested: value
+"#;
+        let result = CloudConfig::from_yaml(yaml);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_unknown_fields_ignored() {
+        let yaml = r#"
+#cloud-config
+hostname: test
+unknown_field: should_be_ignored
+another_unknown:
+  - list
+  - of
+  - values
+"#;
+        // With default serde behavior, unknown fields are ignored
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.hostname, Some("test".to_string()));
+    }
+
+    // ==================== Full Config Tests ====================
+
+    #[test]
+    fn test_parse_full_config() {
+        let yaml = r#"
+#cloud-config
+hostname: production-server
+fqdn: production-server.example.com
+manage_etc_hosts: true
+timezone: UTC
+locale: en_US.UTF-8
+
+users:
+  - default
+  - name: deploy
+    groups:
+      - sudo
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAAC3... deploy@company
+
+package_update: true
+packages:
+  - docker
+  - nginx
+
+write_files:
+  - path: /etc/config.yaml
+    content: test
+    permissions: '0644'
+
+runcmd:
+  - systemctl start docker
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.hostname, Some("production-server".to_string()));
+        assert_eq!(
+            config.fqdn,
+            Some("production-server.example.com".to_string())
+        );
+        assert_eq!(config.manage_etc_hosts, Some(true));
+        assert_eq!(config.timezone, Some("UTC".to_string()));
+        assert_eq!(config.locale, Some("en_US.UTF-8".to_string()));
+        assert_eq!(config.users.len(), 2);
+        assert_eq!(config.package_update, Some(true));
+        assert_eq!(config.packages.len(), 2);
+        assert_eq!(config.write_files.len(), 1);
+        assert_eq!(config.runcmd.len(), 1);
     }
 }
