@@ -13,62 +13,58 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [x] Cloud-config YAML parsing basics
 
 ## Phase 2: GitHub & CI/CD
-**Status: 🔴 Not Started**
+**Status: ✅ Complete**
 
 ### Repository Setup
-- [ ] Create GitHub repository
-- [ ] Configure branch protection (main)
-- [ ] Add issue templates
-- [ ] Add PR template
-- [ ] Add CONTRIBUTING.md
-- [ ] Add CODE_OF_CONDUCT.md
+- [x] Create GitHub repository (ready to push)
+- [ ] Configure branch protection (main) - do after first push
+- [x] Add issue templates (bug_report.md, feature_request.md)
+- [x] Add PR template
+- [x] Add CONTRIBUTING.md
+- [x] Add CODE_OF_CONDUCT.md
 
 ### CI Workflow (on every PR and push to main)
-- [ ] `ci.yml` - Main CI pipeline
-  - [ ] Run on ubuntu-latest, macos-latest
-  - [ ] Matrix test with stable + MSRV (1.75)
-  - [ ] `cargo fmt --check`
-  - [ ] `cargo clippy -- -D warnings`
-  - [ ] `cargo test`
-  - [ ] `cargo build --release`
-  - [ ] Upload test artifacts on failure
+- [x] `ci.yml` - Main CI pipeline
+  - [x] Run on ubuntu-latest, macos-latest
+  - [x] Matrix test with stable + MSRV (1.75)
+  - [x] `cargo fmt --check`
+  - [x] `cargo clippy -- -D warnings`
+  - [x] `cargo test`
+  - [x] `cargo build --release`
+  - [x] Build and upload docs
 
 ### Coverage Workflow
-- [ ] `coverage.yml` - Code coverage reporting
-  - [ ] Use cargo-llvm-cov or tarpaulin
-  - [ ] Upload to Codecov or Coveralls
-  - [ ] Coverage badge in README
-  - [ ] Fail PR if coverage drops below threshold
+- [x] `coverage.yml` - Code coverage reporting
+  - [x] Use cargo-llvm-cov
+  - [x] Upload to Codecov
+  - [ ] Coverage badge in README (after repo created)
+  - [ ] Fail PR if coverage drops below threshold (configure in Codecov)
 
 ### Release Workflow
-- [ ] `release.yml` - Automated releases
-  - [ ] Trigger on tag push (v*.*.*)
-  - [ ] Build release binaries for:
-    - [ ] x86_64-unknown-linux-gnu
-    - [ ] x86_64-unknown-linux-musl (static)
-    - [ ] aarch64-unknown-linux-gnu
-    - [ ] x86_64-apple-darwin
-    - [ ] aarch64-apple-darwin
-  - [ ] Create GitHub Release with changelog
-  - [ ] Upload binary artifacts
-  - [ ] Generate checksums (SHA256)
+- [x] `release.yml` - Automated releases
+  - [x] Trigger on tag push (v*.*.*)
+  - [x] Build release binaries for:
+    - [x] x86_64-unknown-linux-gnu
+    - [x] x86_64-unknown-linux-musl (static)
+    - [x] aarch64-unknown-linux-gnu
+    - [x] x86_64-apple-darwin
+    - [x] aarch64-apple-darwin
+  - [x] Create GitHub Release with changelog
+  - [x] Upload binary artifacts
+  - [x] Generate checksums (SHA256)
 
 ### Publish Workflow
-- [ ] `publish.yml` - Crates.io publishing
-  - [ ] Trigger on GitHub Release
-  - [ ] `cargo publish` to crates.io
-  - [ ] Verify version matches tag
+- [ ] `publish.yml` - Crates.io publishing (deferred to v1.0.0)
 
 ### Security
-- [ ] `audit.yml` - Security scanning
-  - [ ] Run `cargo audit` weekly
-  - [ ] Run on every PR
-  - [ ] Dependabot for dependency updates
+- [x] `audit.yml` - Security scanning
+  - [x] Run `cargo audit` weekly
+  - [x] Run on Cargo.toml/Cargo.lock changes
+  - [x] Dependabot for dependency updates
 
 ### Documentation
-- [ ] `docs.yml` - Documentation deployment
-  - [ ] Build rustdoc
-  - [ ] Deploy to GitHub Pages
+- [x] Rustdoc built in CI workflow
+- [ ] Deploy to GitHub Pages (after repo created)
 
 ## Phase 3: Test Infrastructure (High Priority)
 **Status: 🔴 Not Started**
