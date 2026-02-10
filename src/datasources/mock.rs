@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 
 use super::Datasource;
-use crate::{config::CloudConfig, CloudInitError, InstanceMetadata, UserData};
+use crate::{CloudInitError, InstanceMetadata, UserData, config::CloudConfig};
 
 /// Mock datasource for testing
 ///

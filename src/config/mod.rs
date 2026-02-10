@@ -552,10 +552,12 @@ final_message: |
   Hostname: $HOSTNAME
 "#;
         let config = CloudConfig::from_yaml(yaml).unwrap();
-        assert!(config
-            .final_message
-            .unwrap()
-            .contains("Cloud-init completed"));
+        assert!(
+            config
+                .final_message
+                .unwrap()
+                .contains("Cloud-init completed")
+        );
     }
 
     // ==================== Error Handling Tests ====================

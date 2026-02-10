@@ -6,10 +6,10 @@
 //! - 80% compatibility with cloud-init functionality
 
 use clap::{Parser, Subcommand};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use cloud_init_rs::{run_stages, CloudInitError, Stage};
+use cloud_init_rs::{CloudInitError, Stage, run_stages};
 
 #[derive(Parser)]
 #[command(name = "cloud-init-rs")]

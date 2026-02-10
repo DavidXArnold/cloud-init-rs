@@ -10,7 +10,7 @@ use std::time::Duration;
 use tracing::{debug, warn};
 
 use super::Datasource;
-use crate::{config::CloudConfig, CloudInitError, InstanceMetadata, UserData};
+use crate::{CloudInitError, InstanceMetadata, UserData, config::CloudConfig};
 
 /// EC2 metadata service base URL (link-local address)
 const IMDS_BASE_URL: &str = "http://169.254.169.254";

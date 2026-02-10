@@ -1,8 +1,8 @@
 //! Write files module
 
-use crate::config::WriteFileConfig;
 use crate::CloudInitError;
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
+use crate::config::WriteFileConfig;
+use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use std::path::Path;
 use tokio::fs;
 use tracing::{debug, info};

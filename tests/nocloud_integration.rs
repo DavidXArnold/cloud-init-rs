@@ -173,9 +173,9 @@ fn test_nocloud_base64_userdata() {
 /// Test gzip compressed user-data detection
 #[test]
 fn test_nocloud_gzip_userdata() {
+    use flate2::Compression;
     use flate2::read::GzDecoder;
     use flate2::write::GzEncoder;
-    use flate2::Compression;
     use std::io::{Read, Write};
 
     let original = "#cloud-config\nhostname: compressed-test\n";

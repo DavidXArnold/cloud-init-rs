@@ -12,7 +12,7 @@ use tokio::fs;
 use tracing::debug;
 
 use super::Datasource;
-use crate::{config::CloudConfig, CloudInitError, InstanceMetadata, UserData};
+use crate::{CloudInitError, InstanceMetadata, UserData, config::CloudConfig};
 
 /// NoCloud datasource for local file-based configuration
 pub struct NoCloud {
