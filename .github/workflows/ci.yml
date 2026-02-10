@@ -33,12 +33,11 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
 
   test:
-    name: Test (${{ matrix.os }}, ${{ matrix.rust }})
-    runs-on: ${{ matrix.os }}
+    name: Test (${{ matrix.rust }})
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         rust: [stable, "1.88"]  # stable + MSRV
     steps:
       - uses: actions/checkout@v4
@@ -52,11 +51,8 @@ jobs:
         run: cargo test --all-features --release
 
   build:
-    name: Build (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
+    name: Build
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -66,7 +62,7 @@ jobs:
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: cloud-init-rs-${{ matrix.os }}
+          name: cloud-init-rs-linux
           path: target/release/cloud-init-rs
           if-no-files-found: error
 

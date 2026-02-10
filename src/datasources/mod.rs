@@ -2,9 +2,12 @@
 //!
 //! Datasources provide instance metadata and user data from cloud providers.
 
+pub mod azure;
 pub mod ec2;
+pub mod gce;
 pub mod mock;
 pub mod nocloud;
+pub mod openstack;
 
 use crate::{CloudInitError, InstanceMetadata, UserData};
 use async_trait::async_trait;
@@ -39,10 +42,13 @@ pub trait Datasource: Send + Sync {
 /// Detect and return the appropriate datasource for this instance
 pub async fn detect_datasource() -> Result<Box<dyn Datasource>, CloudInitError> {
     // Try datasources in order of priority
+    // NoCloud first (local config), then cloud providers
     let datasources: Vec<Box<dyn Datasource>> = vec![
         Box::new(nocloud::NoCloud::new()),
         Box::new(ec2::Ec2::new()),
-        // Add more datasources here
+        Box::new(gce::Gce::new()),
+        Box::new(azure::Azure::new()),
+        Box::new(openstack::OpenStack::new()),
     ];
 
     for ds in datasources {
