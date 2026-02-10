@@ -1,0 +1,47 @@
+[package]
+name = "cloud-init-rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+authors = ["cloud-init-rs contributors"]
+description = "A safe Rust implementation of cloud-init focused on fast boot times"
+license = "Apache-2.0"
+repository = "https://github.com/your-org/cloud-init-rs"
+keywords = ["cloud-init", "cloud", "provisioning", "infrastructure"]
+categories = ["command-line-utilities", "config"]
+
+[dependencies]
+# Async runtime
+tokio = { version = "=1.32.0", features = ["rt", "rt-multi-thread", "fs", "io-util", "process", "sync", "time", "macros"] }
+
+# Serialization for cloud-config YAML and JSON metadata
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "=0.9.25"
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "=0.3.17", features = ["env-filter"] }
+
+# Command line parsing
+clap = { version = "=4.4.0", features = ["derive"] }
+
+# Base64 for userdata decoding
+base64 = "=0.21.0"
+
+# Async trait support
+async-trait = "0.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[[bin]]
+name = "cloud-init-rs"
+path = "src/main.rs"
