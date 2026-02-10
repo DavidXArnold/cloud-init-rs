@@ -95,19 +95,6 @@ cloud-init-rs query instance-id
 cloud-init-rs status
 ```
 
-### From Source
-
-```bash
-cargo install --path .
-```
-
-Or build manually:
-
-```bash
-cargo build --release
-sudo cp target/release/cloud-init-rs /usr/bin/
-```
-
 The release binary is optimized for size and speed with LTO enabled.
 
 ## Configuration
