@@ -103,8 +103,11 @@ async fn create_user_full(config: &UserFullConfig) -> Result<(), CloudInitError>
 
     // Configure SSH keys
     if !config.ssh_authorized_keys.is_empty() {
-        crate::modules::ssh_keys::configure_user_ssh_keys(&config.name, &config.ssh_authorized_keys)
-            .await?;
+        crate::modules::ssh_keys::configure_user_ssh_keys(
+            &config.name,
+            &config.ssh_authorized_keys,
+        )
+        .await?;
     }
 
     Ok(())

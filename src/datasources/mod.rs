@@ -5,8 +5,8 @@
 pub mod ec2;
 pub mod nocloud;
 
-use async_trait::async_trait;
 use crate::{CloudInitError, InstanceMetadata, UserData};
+use async_trait::async_trait;
 
 /// Trait for cloud metadata datasources
 ///

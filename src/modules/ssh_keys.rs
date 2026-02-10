@@ -26,7 +26,7 @@ pub async fn configure_user_ssh_keys(
         debug!("Creating SSH directory: {:?}", ssh_dir);
         fs::create_dir_all(&ssh_dir)
             .await
-            .map_err(|e| CloudInitError::Io(e))?;
+            .map_err(CloudInitError::Io)?;
 
         // Set permissions to 700
         #[cfg(unix)]
@@ -34,7 +34,7 @@ pub async fn configure_user_ssh_keys(
             use std::os::unix::fs::PermissionsExt;
             fs::set_permissions(&ssh_dir, std::fs::Permissions::from_mode(0o700))
                 .await
-                .map_err(|e| CloudInitError::Io(e))?;
+                .map_err(CloudInitError::Io)?;
         }
     }
 
@@ -42,15 +42,18 @@ pub async fn configure_user_ssh_keys(
     let content = keys.join("\n") + "\n";
     fs::write(&authorized_keys_path, &content)
         .await
-        .map_err(|e| CloudInitError::Io(e))?;
+        .map_err(CloudInitError::Io)?;
 
     // Set permissions to 600
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        fs::set_permissions(&authorized_keys_path, std::fs::Permissions::from_mode(0o600))
-            .await
-            .map_err(|e| CloudInitError::Io(e))?;
+        fs::set_permissions(
+            &authorized_keys_path,
+            std::fs::Permissions::from_mode(0o600),
+        )
+        .await
+        .map_err(CloudInitError::Io)?;
     }
 
     // Change ownership to the user
@@ -64,7 +67,7 @@ async fn get_user_home(username: &str) -> Result<PathBuf, CloudInitError> {
     // Read /etc/passwd to find home directory
     let passwd = fs::read_to_string("/etc/passwd")
         .await
-        .map_err(|e| CloudInitError::Io(e))?;
+        .map_err(CloudInitError::Io)?;
 
     for line in passwd.lines() {
         let fields: Vec<&str> = line.split(':').collect();

@@ -12,7 +12,52 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [x] Logging with `tracing`
 - [x] Cloud-config YAML parsing basics
 
-## Phase 2: Datasources
+## Phase 2: Test Infrastructure (High Priority)
+**Status: 🔴 Not Started**
+
+Test coverage is critical for a system-level tool. Tests should be written alongside features.
+
+### Unit Tests
+- [ ] Cloud-config parsing tests
+  - [ ] Valid YAML parsing
+  - [ ] Malformed YAML handling
+  - [ ] All config field types
+  - [ ] Edge cases (empty, comments-only)
+- [ ] Datasource tests
+  - [ ] NoCloud file parsing
+  - [ ] EC2 IMDS response parsing
+  - [ ] Datasource detection logic
+- [ ] Module tests
+  - [ ] User creation commands
+  - [ ] File writing with permissions
+  - [ ] Command execution
+
+### Integration Tests
+- [ ] Mock HTTP server tests (wiremock)
+  - [ ] EC2 IMDS mock responses
+  - [ ] Timeout handling
+  - [ ] Error responses (404, 500)
+- [ ] Filesystem tests (tempdir)
+  - [ ] NoCloud seed directory
+  - [ ] write_files output
+  - [ ] Permission verification
+- [ ] End-to-end stage tests
+  - [ ] Local stage with NoCloud
+  - [ ] Config stage with mock data
+
+### Test Utilities
+- [ ] Test fixtures for cloud-config samples
+- [ ] Mock datasource implementation
+- [ ] Tempdir helper for filesystem tests
+- [ ] Assertion helpers for file content/permissions
+
+### Coverage Goals
+- [ ] 80% line coverage for `src/config/`
+- [ ] 80% line coverage for `src/datasources/`
+- [ ] 70% line coverage for `src/modules/`
+- [ ] CI integration with coverage reporting
+
+## Phase 3: Datasources
 **Status: 🔄 In Progress**
 
 ### High Priority (80% of cloud deployments)
@@ -36,7 +81,7 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [ ] LXD
 - [ ] MAAS
 
-## Phase 3: Configuration Modules
+## Phase 4: Configuration Modules
 **Status: 🔄 In Progress**
 
 ### Users and Groups (High Priority)
@@ -110,7 +155,7 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [ ] `scripts_user` - User scripts
 - [ ] `scripts_vendor` - Vendor scripts
 
-## Phase 4: Advanced Features
+## Phase 5: Advanced Features
 
 ### Multi-part MIME
 - [ ] Parse multipart user-data
@@ -135,24 +180,21 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [ ] Per-instance vs per-boot markers
 - [ ] sem/ semaphore files
 
-## Phase 5: Testing and Validation
-
-### Unit Tests
-- [ ] Config parsing tests
-- [ ] Module tests with tempdir
-- [ ] Datasource mocking with wiremock
-
-### Integration Tests
-- [ ] NoCloud end-to-end
-- [ ] Real VM tests (QEMU/KVM)
-- [ ] Container tests
+## Phase 6: Compatibility Validation
 
 ### Compatibility Testing
 - [ ] cloud-init test suite adaptation
 - [ ] Parity testing with Python cloud-init
+- [ ] Real VM tests (QEMU/KVM)
+- [ ] Container tests (Docker, Podman)
 - [ ] Cloud provider testing (AWS, GCE, Azure)
 
-## Phase 6: Production Readiness
+### Regression Testing
+- [ ] Automated nightly test runs
+- [ ] Performance benchmarks vs Python cloud-init
+- [ ] Boot time measurements
+
+## Phase 7: Production Readiness
 
 ### Packaging
 - [ ] Debian/Ubuntu packages

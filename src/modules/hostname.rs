@@ -10,7 +10,7 @@ pub async fn set_hostname(hostname: &str) -> Result<(), CloudInitError> {
     // Write to /etc/hostname
     tokio::fs::write("/etc/hostname", format!("{}\n", hostname))
         .await
-        .map_err(|e| CloudInitError::Io(e))?;
+        .map_err(CloudInitError::Io)?;
 
     // Call hostname command to set it immediately
     let output = tokio::process::Command::new("hostname")

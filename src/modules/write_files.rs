@@ -24,7 +24,7 @@ async fn write_file(config: &WriteFileConfig) -> Result<(), CloudInitError> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)
             .await
-            .map_err(|e| CloudInitError::Io(e))?;
+            .map_err(CloudInitError::Io)?;
     }
 
     // Decode content if needed
@@ -51,11 +51,11 @@ async fn write_file(config: &WriteFileConfig) -> Result<(), CloudInitError> {
         existing.push_str(&content);
         fs::write(path, existing)
             .await
-            .map_err(|e| CloudInitError::Io(e))?;
+            .map_err(CloudInitError::Io)?;
     } else {
         fs::write(path, &content)
             .await
-            .map_err(|e| CloudInitError::Io(e))?;
+            .map_err(CloudInitError::Io)?;
     }
 
     // Set permissions
@@ -84,7 +84,7 @@ async fn set_permissions(path: &Path, perms: &str) -> Result<(), CloudInitError>
 
         fs::set_permissions(path, std::fs::Permissions::from_mode(mode))
             .await
-            .map_err(|e| CloudInitError::Io(e))?;
+            .map_err(CloudInitError::Io)?;
     }
 
     Ok(())

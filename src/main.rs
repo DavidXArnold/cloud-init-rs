@@ -64,8 +64,7 @@ fn init_logging(verbosity: u8) {
         .compact()
         .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("Failed to set tracing subscriber");
+    tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 }
 
 #[tokio::main]

@@ -83,7 +83,7 @@ pub struct InstanceMetadata {
 #[derive(Debug, Clone)]
 pub enum UserData {
     /// Cloud-config YAML
-    CloudConfig(config::CloudConfig),
+    CloudConfig(Box<config::CloudConfig>),
     /// Shell script
     Script(String),
     /// Multi-part MIME

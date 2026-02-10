@@ -44,7 +44,10 @@ impl Ec2 {
         let response = self
             .client
             .put(&url)
-            .header("X-aws-ec2-metadata-token-ttl-seconds", TOKEN_TTL_SECONDS.to_string())
+            .header(
+                "X-aws-ec2-metadata-token-ttl-seconds",
+                TOKEN_TTL_SECONDS.to_string(),
+            )
             .send()
             .await
             .ok()?;
@@ -156,9 +159,11 @@ impl Datasource for Ec2 {
     async fn get_metadata(&self) -> Result<InstanceMetadata, CloudInitError> {
         debug!("Fetching EC2 instance metadata");
 
-        let mut metadata = InstanceMetadata::default();
-        metadata.cloud_name = Some("aws".to_string());
-        metadata.platform = Some("ec2".to_string());
+        let mut metadata = InstanceMetadata {
+            cloud_name: Some("aws".to_string()),
+            platform: Some("ec2".to_string()),
+            ..Default::default()
+        };
 
         // Fetch individual metadata items (continue on individual failures)
         if let Ok(instance_id) = self.fetch_metadata_path("instance-id").await {
@@ -169,7 +174,10 @@ impl Datasource for Ec2 {
             metadata.local_hostname = Some(hostname);
         }
 
-        if let Ok(az) = self.fetch_metadata_path("placement/availability-zone").await {
+        if let Ok(az) = self
+            .fetch_metadata_path("placement/availability-zone")
+            .await
+        {
             metadata.availability_zone = Some(az.clone());
             // Region is AZ minus the last character (e.g., us-east-1a -> us-east-1)
             if az.len() > 1 {
@@ -216,13 +224,13 @@ impl Datasource for Ec2 {
         // Determine type of user data
         if CloudConfig::is_cloud_config(&content) {
             let config = CloudConfig::from_yaml(&content)?;
-            Ok(UserData::CloudConfig(config))
+            Ok(UserData::CloudConfig(Box::new(config)))
         } else if content.starts_with("#!") {
             Ok(UserData::Script(content))
         } else {
             // Try to parse as cloud-config anyway
             match CloudConfig::from_yaml(&content) {
-                Ok(config) => Ok(UserData::CloudConfig(config)),
+                Ok(config) => Ok(UserData::CloudConfig(Box::new(config))),
                 Err(_) => Ok(UserData::Script(content)),
             }
         }

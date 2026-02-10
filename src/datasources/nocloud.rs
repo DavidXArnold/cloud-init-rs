@@ -93,8 +93,10 @@ impl Datasource for NoCloud {
 
         debug!("Reading NoCloud metadata from {:?}", seed_dir);
 
-        let mut metadata = InstanceMetadata::default();
-        metadata.cloud_name = Some("nocloud".to_string());
+        let mut metadata = InstanceMetadata {
+            cloud_name: Some("nocloud".to_string()),
+            ..Default::default()
+        };
 
         // Parse meta-data YAML
         if let Some(content) = self.read_file(&seed_dir, "meta-data").await {
@@ -127,13 +129,13 @@ impl Datasource for NoCloud {
         // Determine type of user data
         if CloudConfig::is_cloud_config(&content) {
             let config = CloudConfig::from_yaml(&content)?;
-            Ok(UserData::CloudConfig(config))
+            Ok(UserData::CloudConfig(Box::new(config)))
         } else if content.starts_with("#!") {
             Ok(UserData::Script(content))
         } else {
             // Try to parse as cloud-config anyway
             match CloudConfig::from_yaml(&content) {
-                Ok(config) => Ok(UserData::CloudConfig(config)),
+                Ok(config) => Ok(UserData::CloudConfig(Box::new(config))),
                 Err(_) => Ok(UserData::Script(content)),
             }
         }

@@ -78,7 +78,7 @@ pub enum UserConfig {
     /// Simple user name
     Name(String),
     /// Full user configuration
-    Full(UserFullConfig),
+    Full(Box<UserFullConfig>),
 }
 
 /// Full user configuration
@@ -198,7 +198,9 @@ packages:
 
     #[test]
     fn test_is_cloud_config() {
-        assert!(CloudConfig::is_cloud_config("#cloud-config\nhostname: test"));
+        assert!(CloudConfig::is_cloud_config(
+            "#cloud-config\nhostname: test"
+        ));
         assert!(CloudConfig::is_cloud_config("  #cloud-config\n"));
         assert!(!CloudConfig::is_cloud_config("#!/bin/bash\necho hello"));
     }
