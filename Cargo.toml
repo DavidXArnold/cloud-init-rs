@@ -63,3 +63,36 @@ panic = "abort"
 [[bin]]
 name = "cloud-init-rs"
 path = "src/main.rs"
+
+# Debian package metadata (cargo-deb)
+[package.metadata.deb]
+maintainer = "cloud-init-rs contributors"
+depends = ""
+section = "admin"
+priority = "optional"
+assets = [
+    ["target/release/cloud-init-rs", "usr/bin/", "755"],
+    ["systemd/cloud-init-local.service", "lib/systemd/system/", "644"],
+    ["systemd/cloud-init.service", "lib/systemd/system/", "644"],
+    ["systemd/cloud-config.service", "lib/systemd/system/", "644"],
+    ["systemd/cloud-final.service", "lib/systemd/system/", "644"],
+    ["systemd/cloud-init.target", "lib/systemd/system/", "644"],
+    ["README.md", "usr/share/doc/cloud-init-rs/", "644"],
+    ["LICENSE", "usr/share/doc/cloud-init-rs/", "644"],
+]
+maintainer-scripts = "debian/"
+systemd-units = { enable = false }
+
+# RPM package metadata (cargo-generate-rpm)
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/cloud-init-rs", dest = "/usr/bin/cloud-init-rs", mode = "755" },
+    { source = "systemd/cloud-init-local.service", dest = "/usr/lib/systemd/system/cloud-init-local.service", mode = "644" },
+    { source = "systemd/cloud-init.service", dest = "/usr/lib/systemd/system/cloud-init.service", mode = "644" },
+    { source = "systemd/cloud-config.service", dest = "/usr/lib/systemd/system/cloud-config.service", mode = "644" },
+    { source = "systemd/cloud-final.service", dest = "/usr/lib/systemd/system/cloud-final.service", mode = "644" },
+    { source = "systemd/cloud-init.target", dest = "/usr/lib/systemd/system/cloud-init.target", mode = "644" },
+    { source = "README.md", dest = "/usr/share/doc/cloud-init-rs/README.md", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/doc/cloud-init-rs/LICENSE", mode = "644" },
+]
+[package.metadata.generate-rpm.requires]

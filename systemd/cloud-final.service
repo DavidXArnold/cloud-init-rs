@@ -1,0 +1,19 @@
+[Unit]
+Description=Cloud-init: Final Stage
+Wants=network-online.target cloud-config.service
+After=network-online.target cloud-config.service
+After=multi-user.target
+Conflicts=shutdown.target
+RequiresMountsFor=/var/lib/cloud
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/cloud-init-rs final
+RemainAfterExit=yes
+TimeoutSec=0
+
+# Output needs to appear in instance console output
+StandardOutput=journal+console
+
+[Install]
+WantedBy=cloud-init.target

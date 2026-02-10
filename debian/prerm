@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+# Disable and stop services on removal
+if [ -d /run/systemd/system ]; then
+    systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || true
+    systemctl --no-reload disable cloud-init.service >/dev/null 2>&1 || true
+    systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || true
+    systemctl --no-reload disable cloud-final.service >/dev/null 2>&1 || true
+    systemctl stop cloud-init-local.service >/dev/null 2>&1 || true
+    systemctl stop cloud-init.service >/dev/null 2>&1 || true
+    systemctl stop cloud-config.service >/dev/null 2>&1 || true
+    systemctl stop cloud-final.service >/dev/null 2>&1 || true
+fi
+
+exit 0

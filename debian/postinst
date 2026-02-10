@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+
+# Enable systemd services if systemd is available
+if [ -d /run/systemd/system ]; then
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    
+    # Enable cloud-init services but don't start them
+    # They will start on next boot
+    systemctl enable cloud-init-local.service >/dev/null 2>&1 || true
+    systemctl enable cloud-init.service >/dev/null 2>&1 || true
+    systemctl enable cloud-config.service >/dev/null 2>&1 || true
+    systemctl enable cloud-final.service >/dev/null 2>&1 || true
+fi
+
+exit 0
