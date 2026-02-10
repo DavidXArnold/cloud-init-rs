@@ -40,7 +40,10 @@ jobs:
           key: deb-${{ matrix.target }}
 
       - name: Install cargo-deb
-        run: cargo install cargo-deb --locked
+        run: |
+          if ! command -v cargo-deb &> /dev/null; then
+            cargo install cargo-deb --locked
+          fi
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
@@ -98,7 +101,10 @@ jobs:
           key: rpm-${{ matrix.target }}
 
       - name: Install cargo-generate-rpm
-        run: cargo install cargo-generate-rpm --locked
+        run: |
+          if ! command -v cargo-generate-rpm &> /dev/null; then
+            cargo install cargo-generate-rpm --locked
+          fi
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
