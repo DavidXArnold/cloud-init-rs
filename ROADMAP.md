@@ -302,6 +302,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] Distribution targets
   - [ ] RHEL 8 / Rocky Linux 8 / AlmaLinux 8
   - [ ] RHEL 9 / Rocky Linux 9 / AlmaLinux 9
+  - [ ] Amazon Linux 2023
   - [ ] Fedora (latest 2 releases)
 - [ ] Repository hosting (COPR or packagecloud.io)
 
