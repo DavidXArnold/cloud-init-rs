@@ -33,12 +33,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Install cargo-deb
-        run: cargo install cargo-deb
-
       - uses: Swatinem/rust-cache@v2
         with:
           key: deb-${{ matrix.target }}
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
@@ -89,12 +89,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
-      - name: Install cargo-generate-rpm
-        run: cargo install cargo-generate-rpm
-
       - uses: Swatinem/rust-cache@v2
         with:
           key: rpm-${{ matrix.target }}
+
+      - name: Install cargo-generate-rpm
+        run: cargo install cargo-generate-rpm --locked
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}

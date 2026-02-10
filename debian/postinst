@@ -7,10 +7,9 @@ if [ -d /run/systemd/system ]; then
     
     # Enable cloud-init services but don't start them
     # They will start on next boot
-    systemctl enable cloud-init-local.service >/dev/null 2>&1 || true
-    systemctl enable cloud-init.service >/dev/null 2>&1 || true
-    systemctl enable cloud-config.service >/dev/null 2>&1 || true
-    systemctl enable cloud-final.service >/dev/null 2>&1 || true
+    for service in cloud-init-local cloud-init cloud-config cloud-final; do
+        systemctl enable "${service}.service" >/dev/null 2>&1 || true
+    done
 fi
 
 exit 0

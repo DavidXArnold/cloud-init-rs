@@ -3,14 +3,10 @@ set -e
 
 # Disable and stop services on removal
 if [ -d /run/systemd/system ]; then
-    systemctl --no-reload disable cloud-init-local.service >/dev/null 2>&1 || true
-    systemctl --no-reload disable cloud-init.service >/dev/null 2>&1 || true
-    systemctl --no-reload disable cloud-config.service >/dev/null 2>&1 || true
-    systemctl --no-reload disable cloud-final.service >/dev/null 2>&1 || true
-    systemctl stop cloud-init-local.service >/dev/null 2>&1 || true
-    systemctl stop cloud-init.service >/dev/null 2>&1 || true
-    systemctl stop cloud-config.service >/dev/null 2>&1 || true
-    systemctl stop cloud-final.service >/dev/null 2>&1 || true
+    for service in cloud-init-local cloud-init cloud-config cloud-final; do
+        systemctl --no-reload disable "${service}.service" >/dev/null 2>&1 || true
+        systemctl stop "${service}.service" >/dev/null 2>&1 || true
+    done
 fi
 
 exit 0
