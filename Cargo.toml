@@ -52,7 +52,7 @@ multipart = { version = "0.18", default-features = false, features = ["server"] 
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3"
-wiremock = "0.6"
+wiremock = "0.5"  # Pinned to 0.5.x for MSRV 1.75 compatibility (0.6 requires edition 2024)
 assert_fs = "1"
 predicates = "3"
 
