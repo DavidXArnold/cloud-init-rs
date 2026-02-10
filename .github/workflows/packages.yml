@@ -38,12 +38,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: deb-${{ matrix.target }}
+          cache-targets: true
 
       - name: Install cargo-deb
-        run: |
-          if ! command -v cargo-deb &> /dev/null; then
-            cargo install cargo-deb --locked
-          fi
+        run: cargo install cargo-deb --locked
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
@@ -99,12 +97,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: rpm-${{ matrix.target }}
+          cache-targets: true
 
       - name: Install cargo-generate-rpm
-        run: |
-          if ! command -v cargo-generate-rpm &> /dev/null; then
-            cargo install cargo-generate-rpm --locked
-          fi
+        run: cargo install cargo-generate-rpm --locked
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
