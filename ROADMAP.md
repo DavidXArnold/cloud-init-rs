@@ -56,6 +56,27 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 ### Publish Workflow
 - [ ] `publish.yml` - Crates.io publishing (deferred to v1.0.0)
 
+### OS Package Publishing Workflow
+- [ ] `packages.yml` - Build and publish OS packages on release
+  - [ ] Trigger on GitHub Release (v*.*.*)
+  - [ ] Debian/Ubuntu packages (.deb)
+    - [ ] Build using cargo-deb
+    - [ ] Target: amd64, arm64
+    - [ ] Include systemd service files
+    - [ ] Upload to GitHub Release
+    - [ ] Publish to PPA or packagecloud.io
+  - [ ] RHEL/Fedora packages (.rpm)
+    - [ ] Build using cargo-rpm or cargo-generate-rpm
+    - [ ] Target: x86_64, aarch64
+    - [ ] Include systemd service files
+    - [ ] Upload to GitHub Release
+    - [ ] Publish to COPR or packagecloud.io
+  - [ ] Package metadata
+    - [ ] Proper package description and license
+    - [ ] Correct dependencies (none for static builds)
+    - [ ] Post-install scripts for systemd enablement
+    - [ ] Changelog generation from git tags
+
 ### Security
 - [x] `audit.yml` - Security scanning
   - [x] Run `cargo audit` weekly
@@ -250,11 +271,47 @@ Test coverage is critical for a system-level tool. Tests should be written along
 
 ## Phase 8: Production Readiness
 
-### Packaging
-- [ ] Debian/Ubuntu packages
-- [ ] RPM packages (RHEL, Fedora)
-- [ ] Alpine APK
-- [ ] Static binary releases
+### Packaging Infrastructure
+- [ ] Package build tooling
+  - [ ] cargo-deb configuration in Cargo.toml
+  - [ ] cargo-generate-rpm configuration
+  - [ ] Systemd unit file templates
+  - [ ] Package post-install/pre-remove scripts
+
+### Debian/Ubuntu Packages (.deb)
+- [ ] Package structure
+  - [ ] Binary: /usr/bin/cloud-init-rs
+  - [ ] Config: /etc/cloud/cloud.cfg.d/
+  - [ ] Systemd: /lib/systemd/system/cloud-init*.service
+  - [ ] Docs: /usr/share/doc/cloud-init-rs/
+- [ ] Architectures: amd64, arm64
+- [ ] Distribution targets
+  - [ ] Ubuntu 22.04 LTS (Jammy)
+  - [ ] Ubuntu 24.04 LTS (Noble)
+  - [ ] Debian 11 (Bullseye)
+  - [ ] Debian 12 (Bookworm)
+- [ ] Repository hosting (PPA or packagecloud.io)
+
+### RHEL/Fedora Packages (.rpm)
+- [ ] Package structure
+  - [ ] Binary: /usr/bin/cloud-init-rs
+  - [ ] Config: /etc/cloud/cloud.cfg.d/
+  - [ ] Systemd: /usr/lib/systemd/system/cloud-init*.service
+  - [ ] Docs: /usr/share/doc/cloud-init-rs/
+- [ ] Architectures: x86_64, aarch64
+- [ ] Distribution targets
+  - [ ] RHEL 8 / Rocky Linux 8 / AlmaLinux 8
+  - [ ] RHEL 9 / Rocky Linux 9 / AlmaLinux 9
+  - [ ] Fedora (latest 2 releases)
+- [ ] Repository hosting (COPR or packagecloud.io)
+
+### Alpine APK
+- [ ] Alpine package build
+- [ ] Target: Alpine 3.18+
+
+### Static Binary Releases
+- [ ] musl-based static builds (already in release.yml)
+- [ ] Portable tarball with systemd units
 
 ### Systemd Integration
 - [ ] cloud-init-local.service
