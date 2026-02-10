@@ -3,7 +3,7 @@ users:
   - default
   - name: testuser
     gecos: Test User
-    groups: sudo, docker
+    groups: [sudo, docker]
     shell: /bin/bash
     sudo: ALL=(ALL) NOPASSWD:ALL
     lock_passwd: false
@@ -11,4 +11,6 @@ users:
       - ssh-rsa AAAAB3NzaC1... test@example.com
 groups:
   - docker
-  - admin: [testuser]
+  - name: admin
+    members:
+      - testuser

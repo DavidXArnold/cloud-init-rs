@@ -193,9 +193,9 @@ fn test_nocloud_gzip_userdata() {
     assert_eq!(decompressed, original);
 }
 
-/// Test cloud-config parsing from fixture files
+/// Test cloud-config parsing from all fixture files
 #[test]
-fn test_parse_fixture_files() {
+fn test_parse_all_fixture_files() {
     use cloud_init_rs::config::CloudConfig;
 
     // Basic fixture
@@ -214,4 +214,35 @@ fn test_parse_fixture_files() {
     let empty = include_str!("fixtures/empty.yaml");
     let config = CloudConfig::from_yaml(empty).unwrap();
     assert!(config.hostname.is_none());
+
+    // Comments only fixture
+    let comments = include_str!("fixtures/comments_only.yaml");
+    let config = CloudConfig::from_yaml(comments).unwrap();
+    assert!(config.hostname.is_none());
+
+    // Users fixture
+    let users = include_str!("fixtures/users.yaml");
+    let config = CloudConfig::from_yaml(users).unwrap();
+    assert_eq!(config.users.len(), 2);
+    assert_eq!(config.groups.len(), 2);
+
+    // Write files fixture
+    let write_files = include_str!("fixtures/write_files.yaml");
+    let config = CloudConfig::from_yaml(write_files).unwrap();
+    assert_eq!(config.write_files.len(), 3);
+
+    // Runcmd fixture
+    let runcmd = include_str!("fixtures/runcmd.yaml");
+    let config = CloudConfig::from_yaml(runcmd).unwrap();
+    assert_eq!(config.runcmd.len(), 4);
+
+    // Full fixture (comprehensive test)
+    let full = include_str!("fixtures/full.yaml");
+    let config = CloudConfig::from_yaml(full).unwrap();
+    assert_eq!(config.hostname, Some("production-server".to_string()));
+    assert_eq!(config.users.len(), 2);
+    assert_eq!(config.packages.len(), 4);
+    assert_eq!(config.write_files.len(), 1);
+    assert_eq!(config.runcmd.len(), 3);
+    assert!(config.final_message.is_some());
 }
