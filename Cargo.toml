@@ -49,6 +49,9 @@ async-trait = "0.1"
 # Jinja2-compatible templating for cloud-init templates
 minijinja = "2"
 
+# UUID generation for NetworkManager connections
+uuid = { version = "1", features = ["v4"] }
+
 [dev-dependencies]
 tokio-test = "0.4"
 tempfile = "3"

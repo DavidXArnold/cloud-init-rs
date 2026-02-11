@@ -82,6 +82,9 @@ pub struct CloudConfig {
 
     /// Final message template
     pub final_message: Option<String>,
+
+    /// Network configuration (inline v2 format)
+    pub network: Option<crate::network::NetworkConfig>,
 }
 
 /// User configuration

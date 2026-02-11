@@ -211,14 +211,14 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] `snap` - Snap packages
 
 ### Network Configuration (Medium Priority)
-- [ ] Network config v1 parsing
-- [ ] Network config v2 (Netplan) parsing
-- [ ] Renderer: networkd
-- [ ] Renderer: NetworkManager
-- [ ] Renderer: ENI (Debian)
-- [ ] Static IP configuration
-- [ ] DHCP configuration
-- [ ] Bonding and VLANs
+- [x] Network config v1 parsing (src/network/v1.rs)
+- [x] Network config v2 (Netplan) parsing (src/network/mod.rs)
+- [x] Renderer: networkd (src/network/render/networkd.rs)
+- [x] Renderer: NetworkManager (src/network/render/network_manager.rs)
+- [x] Renderer: ENI (Debian) (src/network/render/eni.rs)
+- [x] Static IP configuration
+- [x] DHCP configuration
+- [x] Bonding and VLANs
 
 ### Security (Medium Priority)
 - [ ] `ca_certs` - CA certificates
