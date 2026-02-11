@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/cloud-init-rs-logo.png" alt="Cloud-init-rs Logo">
+</p>
+
 # cloud-init-rs
 
 A safe Rust implementation of [cloud-init](https://github.com/canonical/cloud-init) focused on fast boot times and memory safety.
@@ -9,27 +13,54 @@ A safe Rust implementation of [cloud-init](https://github.com/canonical/cloud-in
 - **80% Compatibility**: Support the most commonly used cloud-init features
 - **Backwards Compatible**: Parse existing cloud-config YAML formats
 
+## Current Status
+
+**Phase 6 Complete** - Advanced features implemented. See [ROADMAP.md](ROADMAP.md) for full details.
+
 ## Features
 
 ### Supported Datasources
 
-- [ ] NoCloud (local files, ISO)
-- [ ] EC2 (AWS, compatible clouds)
-- [ ] GCE (Google Cloud)
-- [ ] Azure
-- [ ] OpenStack
+- [x] NoCloud (local files, ISO)
+- [x] EC2 (AWS, compatible clouds) - IMDSv1 and IMDSv2
+- [x] GCE (Google Cloud)
+- [x] Azure (IMDS)
+- [x] OpenStack (config-drive and metadata service)
 
 ### Supported Modules
 
-- [ ] `users` - Create and configure users
-- [ ] `groups` - Create groups
-- [ ] `write_files` - Write files with specified content
-- [ ] `runcmd` - Execute commands
-- [ ] `packages` - Install packages
-- [ ] `ssh_authorized_keys` - Configure SSH keys
-- [ ] `hostname` - Set system hostname
-- [ ] `growpart` - Grow partitions
-- [ ] `resize_rootfs` - Resize root filesystem
+- [x] `users` - Create and configure users with SSH keys, sudo, groups
+- [x] `groups` - Create groups with members
+- [x] `write_files` - Write files with base64/gzip encoding support
+- [x] `runcmd` - Execute commands (shell strings and arg arrays)
+- [x] `bootcmd` - Early boot commands
+- [x] `packages` - Install packages (apt/dnf/yum/zypper/apk)
+- [x] `package_update` - Update package cache
+- [x] `package_upgrade` - Upgrade installed packages
+- [x] `ssh_authorized_keys` - Configure SSH keys
+- [x] `hostname` - Set system hostname with FQDN and /etc/hosts
+- [x] `timezone` - Set system timezone
+- [x] `locale` - Set system locale
+- [x] `ntp` - Configure NTP (chrony/timesyncd/ntpd)
+- [ ] `growpart` - Grow partitions (planned)
+- [ ] `resize_rootfs` - Resize root filesystem (planned)
+
+### Network Configuration
+
+- [x] Network config v1 (legacy format) parsing
+- [x] Network config v2 (Netplan format) parsing
+- [x] Bonds, bridges, VLANs, static routes
+- [x] Renderer: systemd-networkd
+- [x] Renderer: NetworkManager  
+- [x] Renderer: Debian ENI (/etc/network/interfaces)
+
+### Advanced Features
+
+- [x] MIME multipart user-data parsing
+- [x] Cloud-config merging (cloud.cfg + cloud.cfg.d/*.cfg + user-data)
+- [x] Jinja2 templating with instance metadata
+- [x] Instance state management (/var/lib/cloud structure)
+- [x] Semaphore-based execution control (per-instance, per-boot, per-once)
 
 ## Installation
 
@@ -133,11 +164,36 @@ src/
 ├── main.rs           # CLI entry point
 ├── lib.rs            # Library exports
 ├── error.rs          # Error types
-├── config/           # Cloud-config parsing
-├── datasources/      # Metadata sources (EC2, GCE, etc.)
+├── config/           # Cloud-config parsing and merging
+│   ├── loader.rs     # Config loading from standard locations
+│   └── merge.rs      # Config merging logic
+├── datasources/      # Metadata sources
+│   ├── ec2.rs        # AWS EC2 (IMDSv1/v2)
+│   ├── gce.rs        # Google Cloud
+│   ├── azure.rs      # Microsoft Azure
+│   ├── openstack.rs  # OpenStack
+│   └── nocloud.rs    # NoCloud (local/ISO)
 ├── modules/          # Configuration modules
+│   ├── users.rs      # User creation
+│   ├── groups.rs     # Group creation
+│   ├── hostname.rs   # Hostname configuration
+│   ├── packages.rs   # Package management
+│   ├── write_files.rs# File writing
+│   └── ...           # Other modules
 ├── network/          # Network configuration
-└── stages/           # Boot stages (local, network, config, final)
+│   ├── mod.rs        # V2 (Netplan) parsing
+│   ├── v1.rs         # V1 (legacy) parsing
+│   └── render/       # Renderers (networkd, NM, ENI)
+├── stages/           # Boot stages
+│   ├── local.rs      # Pre-network (disk, network config)
+│   ├── network.rs    # Post-network (metadata fetch)
+│   ├── config.rs     # Configuration application
+│   └── final_stage.rs# User scripts
+├── state/            # Instance state management
+│   ├── paths.rs      # /var/lib/cloud paths
+│   └── semaphore.rs  # Execution frequency control
+├── template/         # Jinja2 templating
+└── userdata/         # User-data parsing (MIME, types)
 ```
 
 ## License
