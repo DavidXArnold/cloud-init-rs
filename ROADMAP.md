@@ -25,8 +25,8 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 
 ### CI Workflow (on every PR and push to main)
 - [x] `ci.yml` - Main CI pipeline
-  - [x] Run on ubuntu-latest, macos-latest
-  - [x] Matrix test with stable + MSRV (1.75)
+  - [x] Run on ubuntu-latest
+  - [x] Matrix test with stable + MSRV (1.88)
   - [x] `cargo fmt --check`
   - [x] `cargo clippy -- -D warnings`
   - [x] `cargo test`
@@ -57,25 +57,25 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [ ] `publish.yml` - Crates.io publishing (deferred to v1.0.0)
 
 ### OS Package Publishing Workflow
-- [ ] `packages.yml` - Build and publish OS packages on release
-  - [ ] Trigger on GitHub Release (v*.*.*)
-  - [ ] Debian/Ubuntu packages (.deb)
-    - [ ] Build using cargo-deb
-    - [ ] Target: amd64, arm64
-    - [ ] Include systemd service files
-    - [ ] Upload to GitHub Release
-    - [ ] Publish to PPA or packagecloud.io
-  - [ ] RHEL/Fedora packages (.rpm)
-    - [ ] Build using cargo-rpm or cargo-generate-rpm
-    - [ ] Target: x86_64, aarch64
-    - [ ] Include systemd service files
-    - [ ] Upload to GitHub Release
-    - [ ] Publish to COPR or packagecloud.io
-  - [ ] Package metadata
-    - [ ] Proper package description and license
-    - [ ] Correct dependencies (none for static builds)
-    - [ ] Post-install scripts for systemd enablement
-    - [ ] Changelog generation from git tags
+- [x] `packages.yml` - Build and publish OS packages on release
+  - [x] Trigger on GitHub Release (v*.*.*)
+  - [x] Debian/Ubuntu packages (.deb)
+    - [x] Build using cargo-deb
+    - [x] Target: amd64, arm64
+    - [x] Include systemd service files
+    - [x] Upload to GitHub Release
+    - [ ] Publish to PPA or packagecloud.io (deferred)
+  - [x] RHEL/Fedora packages (.rpm)
+    - [x] Build using cargo-generate-rpm
+    - [x] Target: x86_64, aarch64
+    - [x] Include systemd service files
+    - [x] Upload to GitHub Release
+    - [ ] Publish to COPR or packagecloud.io (deferred)
+  - [x] Package metadata
+    - [x] Proper package description and license
+    - [x] Correct dependencies (none for static builds)
+    - [x] Post-install scripts for systemd enablement
+    - [ ] Changelog generation from git tags (deferred)
 
 ### Security
 - [x] `audit.yml` - Security scanning
@@ -337,19 +337,19 @@ Comprehensive end-to-end testing on real cloud infrastructure.
 ## Phase 8: Production Readiness
 
 ### Packaging Infrastructure
-- [ ] Package build tooling
-  - [ ] cargo-deb configuration in Cargo.toml
-  - [ ] cargo-generate-rpm configuration
-  - [ ] Systemd unit file templates
-  - [ ] Package post-install/pre-remove scripts
+- [x] Package build tooling
+  - [x] cargo-deb configuration in Cargo.toml
+  - [x] cargo-generate-rpm configuration
+  - [x] Systemd unit file templates
+  - [x] Package post-install/pre-remove scripts
 
 ### Debian/Ubuntu Packages (.deb)
-- [ ] Package structure
-  - [ ] Binary: /usr/bin/cloud-init-rs
+- [x] Package structure
+  - [x] Binary: /usr/bin/cloud-init-rs
   - [ ] Config: /etc/cloud/cloud.cfg.d/
-  - [ ] Systemd: /lib/systemd/system/cloud-init*.service
-  - [ ] Docs: /usr/share/doc/cloud-init-rs/
-- [ ] Architectures: amd64, arm64
+  - [x] Systemd: /lib/systemd/system/cloud-init*.service
+  - [x] Docs: /usr/share/doc/cloud-init-rs/
+- [x] Architectures: amd64, arm64
 - [ ] Distribution targets
   - [ ] Ubuntu 22.04 LTS (Jammy)
   - [ ] Ubuntu 24.04 LTS (Noble)
@@ -358,12 +358,12 @@ Comprehensive end-to-end testing on real cloud infrastructure.
 - [ ] Repository hosting (PPA or packagecloud.io)
 
 ### RHEL/Fedora Packages (.rpm)
-- [ ] Package structure
-  - [ ] Binary: /usr/bin/cloud-init-rs
+- [x] Package structure
+  - [x] Binary: /usr/bin/cloud-init-rs
   - [ ] Config: /etc/cloud/cloud.cfg.d/
-  - [ ] Systemd: /usr/lib/systemd/system/cloud-init*.service
-  - [ ] Docs: /usr/share/doc/cloud-init-rs/
-- [ ] Architectures: x86_64, aarch64
+  - [x] Systemd: /usr/lib/systemd/system/cloud-init*.service
+  - [x] Docs: /usr/share/doc/cloud-init-rs/
+- [x] Architectures: x86_64, aarch64
 - [ ] Distribution targets
   - [ ] RHEL 8 / Rocky Linux 8 / AlmaLinux 8
   - [ ] RHEL 9 / Rocky Linux 9 / AlmaLinux 9
@@ -376,15 +376,16 @@ Comprehensive end-to-end testing on real cloud infrastructure.
 - [ ] Target: Alpine 3.18+
 
 ### Static Binary Releases
-- [ ] musl-based static builds (already in release.yml)
+- [x] musl-based static builds (already in release.yml)
 - [ ] Portable tarball with systemd units
 
 ### Systemd Integration
-- [ ] cloud-init-local.service
-- [ ] cloud-init.service
-- [ ] cloud-config.service
-- [ ] cloud-final.service
-- [ ] Ordering dependencies
+- [x] cloud-init-local.service
+- [x] cloud-init.service
+- [x] cloud-config.service
+- [x] cloud-final.service
+- [x] cloud-init.target
+- [x] Ordering dependencies
 
 ### Documentation
 - [ ] User guide
