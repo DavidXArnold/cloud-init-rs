@@ -31,6 +31,10 @@ pub struct CloudConfig {
     #[serde(default)]
     pub write_files: Vec<WriteFileConfig>,
 
+    /// Early boot commands
+    #[serde(default)]
+    pub bootcmd: Vec<RunCmd>,
+
     /// Commands to run
     #[serde(default)]
     pub runcmd: Vec<RunCmd>,
@@ -57,6 +61,9 @@ pub struct CloudConfig {
 
     /// Locale to set
     pub locale: Option<String>,
+
+    /// NTP configuration
+    pub ntp: Option<NtpConfig>,
 
     /// Growpart configuration
     pub growpart: Option<GrowpartConfig>,
@@ -158,6 +165,20 @@ pub struct PhoneHomeConfig {
     pub url: String,
     pub post: Option<Vec<String>>,
     pub tries: Option<u32>,
+}
+
+/// NTP configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct NtpConfig {
+    /// Enable NTP
+    pub enabled: Option<bool>,
+    /// NTP servers
+    #[serde(default)]
+    pub servers: Vec<String>,
+    /// NTP pools
+    #[serde(default)]
+    pub pools: Vec<String>,
 }
 
 impl CloudConfig {

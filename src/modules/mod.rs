@@ -3,9 +3,12 @@
 //! Each module handles a specific aspect of cloud-init configuration.
 //! Modules are executed in a defined order during the config and final stages.
 
+pub mod bootcmd;
 pub mod groups;
 pub mod hostname;
 pub mod locale;
+pub mod ntp;
+pub mod packages;
 pub mod runcmd;
 pub mod ssh_keys;
 pub mod timezone;
