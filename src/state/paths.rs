@@ -79,37 +79,37 @@ impl CloudPaths {
 
     // ==================== Instance-specific Paths ====================
 
-    /// /var/lib/cloud/instances/<id> - Instance directory
+    /// `/var/lib/cloud/instances/<id>` - Instance directory
     pub fn instance_dir(&self, instance_id: &str) -> PathBuf {
         self.instances_dir().join(instance_id)
     }
 
-    /// /var/lib/cloud/instances/<id>/sem - Semaphore directory
+    /// `/var/lib/cloud/instances/<id>/sem` - Semaphore directory
     pub fn sem_dir(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("sem")
     }
 
-    /// /var/lib/cloud/instances/<id>/boot-finished - Boot completion marker
+    /// `/var/lib/cloud/instances/<id>/boot-finished` - Boot completion marker
     pub fn boot_finished(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("boot-finished")
     }
 
-    /// /var/lib/cloud/instances/<id>/cloud-config.txt - Merged cloud-config
+    /// `/var/lib/cloud/instances/<id>/cloud-config.txt` - Merged cloud-config
     pub fn cloud_config(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("cloud-config.txt")
     }
 
-    /// /var/lib/cloud/instances/<id>/user-data.txt - Raw user-data
+    /// `/var/lib/cloud/instances/<id>/user-data.txt` - Raw user-data
     pub fn user_data(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("user-data.txt")
     }
 
-    /// /var/lib/cloud/instances/<id>/vendor-data.txt - Raw vendor-data
+    /// `/var/lib/cloud/instances/<id>/vendor-data.txt` - Raw vendor-data
     pub fn vendor_data(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("vendor-data.txt")
     }
 
-    /// /var/lib/cloud/instances/<id>/datasource - Datasource identifier
+    /// `/var/lib/cloud/instances/<id>/datasource` - Datasource identifier
     pub fn datasource_file(&self, instance_id: &str) -> PathBuf {
         self.instance_dir(instance_id).join("datasource")
     }

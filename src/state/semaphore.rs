@@ -49,9 +49,9 @@ impl std::fmt::Display for Frequency {
 /// Semaphore manager for a specific instance
 #[derive(Debug, Clone)]
 pub struct SemaphoreManager {
-    /// Base semaphore directory (/var/lib/cloud/instances/<id>/sem)
+    /// Base semaphore directory (`/var/lib/cloud/instances/<id>/sem`)
     sem_dir: PathBuf,
-    /// Data directory for per-once semaphores (/var/lib/cloud/data)
+    /// Data directory for per-once semaphores (`/var/lib/cloud/data`)
     data_dir: PathBuf,
 }
 
