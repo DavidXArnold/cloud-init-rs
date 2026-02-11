@@ -31,6 +31,51 @@ A safe Rust implementation of [cloud-init](https://github.com/canonical/cloud-in
 - [ ] `growpart` - Grow partitions
 - [ ] `resize_rootfs` - Resize root filesystem
 
+## Installation
+
+### Debian/Ubuntu (.deb)
+
+Download the latest `.deb` package from the [releases page](https://github.com/DavidXArnold/cloud-init-rs/releases):
+
+```bash
+# For amd64 (x86_64)
+wget https://github.com/DavidXArnold/cloud-init-rs/releases/latest/download/cloud-init-rs_VERSION_amd64.deb
+sudo dpkg -i cloud-init-rs_VERSION_amd64.deb
+
+# For arm64 (aarch64)
+wget https://github.com/DavidXArnold/cloud-init-rs/releases/latest/download/cloud-init-rs_VERSION_arm64.deb
+sudo dpkg -i cloud-init-rs_VERSION_arm64.deb
+```
+
+The package automatically enables the systemd services.
+
+### RHEL/Fedora/CentOS (.rpm)
+
+Download the latest `.rpm` package from the [releases page](https://github.com/DavidXArnold/cloud-init-rs/releases):
+
+```bash
+# For x86_64
+wget https://github.com/DavidXArnold/cloud-init-rs/releases/latest/download/cloud-init-rs-VERSION-1.x86_64.rpm
+sudo rpm -i cloud-init-rs-VERSION-1.x86_64.rpm
+
+# For aarch64
+wget https://github.com/DavidXArnold/cloud-init-rs/releases/latest/download/cloud-init-rs-VERSION-1.aarch64.rpm
+sudo rpm -i cloud-init-rs-VERSION-1.aarch64.rpm
+```
+
+### From Source
+
+```bash
+cargo install --path .
+```
+
+Or build manually:
+
+```bash
+cargo build --release
+sudo cp target/release/cloud-init-rs /usr/bin/
+```
+
 ## Usage
 
 ```bash
@@ -48,12 +93,6 @@ cloud-init-rs query instance-id
 
 # Check status
 cloud-init-rs status
-```
-
-## Building
-
-```bash
-cargo build --release
 ```
 
 The release binary is optimized for size and speed with LTO enabled.
