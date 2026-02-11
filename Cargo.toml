@@ -46,11 +46,11 @@ flate2 = "1"
 # Async trait support (needed for dyn-compatible async traits)
 async-trait = "0.1"
 
-# MIME multipart parsing for cloud-init multipart userdata
-multipart = { version = "0.18", default-features = false, features = ["server"] }
-
 # Jinja2-compatible templating for cloud-init templates
 minijinja = "2"
+
+# UUID generation for NetworkManager connections
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 tokio-test = "0.4"

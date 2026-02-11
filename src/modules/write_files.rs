@@ -32,7 +32,7 @@ pub async fn write_deferred_files(files: &[WriteFileConfig]) -> Result<(), Cloud
     Ok(())
 }
 
-async fn write_file(config: &WriteFileConfig) -> Result<(), CloudInitError> {
+pub async fn write_file(config: &WriteFileConfig) -> Result<(), CloudInitError> {
     info!("Writing file: {}", config.path);
 
     let path = Path::new(&config.path);
