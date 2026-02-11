@@ -160,35 +160,38 @@ Test coverage is critical for a system-level tool. Tests should be written along
 **Status: 🔄 In Progress**
 
 ### Users and Groups (High Priority)
-- [ ] `users` - Create users with full options
-  - [ ] Default user creation
-  - [ ] SSH key injection
-  - [ ] sudo configuration
-  - [ ] Password hashing
-  - [ ] Group membership
-- [ ] `groups` - Create groups
-- [ ] `ssh_authorized_keys` - Root and user keys
+- [x] `users` - Create users with full options
+  - [x] Default user handling
+  - [x] SSH key injection
+  - [x] sudo configuration (/etc/sudoers.d/)
+  - [x] Password setting (pre-hashed)
+  - [x] lock_passwd support
+  - [x] Group membership
+  - [x] primary_group support
+- [x] `groups` - Create groups via groupadd
+- [x] `ssh_authorized_keys` - Root and user keys
 
 ### Files and Content (High Priority)
-- [ ] `write_files` - Write arbitrary files
+- [x] `write_files` - Write arbitrary files
   - [x] Basic file writing
   - [x] Base64 decoding
-  - [ ] Gzip decompression
-  - [ ] Permissions and ownership
-  - [ ] Deferred writes
+  - [x] Gzip decompression (gz, gzip+base64)
+  - [x] Permissions and ownership
+  - [x] Deferred writes
 - [ ] `bootcmd` - Early boot commands
-- [ ] `runcmd` - Late boot commands
+- [x] `runcmd` - Late boot commands
   - [x] Basic command execution
   - [ ] Shell selection
   - [ ] Error handling modes
 
 ### System Configuration (High Priority)
-- [ ] `hostname` - Set hostname
+- [x] `hostname` - Set hostname
   - [x] Basic implementation
-  - [ ] FQDN handling
-  - [ ] /etc/hosts management
-- [ ] `timezone` - Set timezone
-- [ ] `locale` - Set system locale
+  - [x] hostnamectl support
+  - [x] FQDN handling
+  - [x] /etc/hosts management
+- [x] `timezone` - Set timezone (timedatectl + fallback)
+- [x] `locale` - Set system locale (localectl + fallback)
 - [ ] `keyboard` - Keyboard layout
 - [ ] `ntp` - NTP configuration
 
