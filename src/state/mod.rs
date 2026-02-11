@@ -428,9 +428,11 @@ mod tests {
         let (mut state, _temp) = create_test_state().await;
         state.initialize().await.unwrap();
 
-        let mut status = CloudInitStatus::default();
-        status.status = "running".to_string();
-        status.stage = Some("config".to_string());
+        let status = CloudInitStatus {
+            status: "running".to_string(),
+            stage: Some("config".to_string()),
+            ..Default::default()
+        };
 
         state.update_status(&status).await.unwrap();
 
