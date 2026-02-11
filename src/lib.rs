@@ -14,6 +14,9 @@ pub mod datasources;
 pub mod modules;
 pub mod network;
 pub mod stages;
+pub mod state;
+pub mod template;
+pub mod userdata;
 
 mod error;
 
