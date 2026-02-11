@@ -32,7 +32,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # HTTP client for cloud metadata services (rustls for safety, no OpenSSL)
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "charset"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-tls", "json", "charset"] }
 
 # Command line parsing
 clap = { version = "4", features = ["derive", "env"] }
