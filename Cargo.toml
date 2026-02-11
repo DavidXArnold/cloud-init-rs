@@ -46,9 +46,6 @@ flate2 = "1"
 # Async trait support (needed for dyn-compatible async traits)
 async-trait = "0.1"
 
-# MIME multipart parsing for cloud-init multipart userdata
-multipart = { version = "0.18", default-features = false, features = ["server"] }
-
 # Jinja2-compatible templating for cloud-init templates
 minijinja = "2"
 

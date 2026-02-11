@@ -234,29 +234,33 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] `scripts_vendor` - Vendor scripts
 
 ## Phase 6: Advanced Features
+**Status: ✅ Complete**
 
 ### Multi-part MIME
-- [ ] Parse multipart user-data
-- [ ] cloud-config merging
-- [ ] Include directives
-- [ ] cloud-boothook support
+- [x] Parse multipart user-data (src/userdata/mime.rs)
+- [x] cloud-config merging (src/config/merge.rs)
+- [x] Include directives (src/userdata/mod.rs)
+- [x] cloud-boothook support
 
 ### Jinja Templating
-- [ ] Instance metadata variables
-- [ ] ds (datasource) variables
-- [ ] v1 data variables
+- [x] Instance metadata variables
+- [x] ds (datasource) variables
+- [x] v1 data variables
+- [x] minijinja integration (src/template/mod.rs)
 
 ### Cloud-config Merging
-- [ ] /etc/cloud/cloud.cfg
-- [ ] /etc/cloud/cloud.cfg.d/*.cfg
-- [ ] User-data cloud-config
-- [ ] Vendor-data
+- [x] /etc/cloud/cloud.cfg
+- [x] /etc/cloud/cloud.cfg.d/*.cfg
+- [x] User-data cloud-config
+- [x] Vendor-data
+- [x] ConfigLoader builder pattern (src/config/loader.rs)
 
 ### Instance State
-- [ ] /var/lib/cloud directory structure
-- [ ] Instance ID tracking
-- [ ] Per-instance vs per-boot markers
-- [ ] sem/ semaphore files
+- [x] /var/lib/cloud directory structure
+- [x] Instance ID tracking
+- [x] Per-instance vs per-boot markers
+- [x] sem/ semaphore files
+- [x] SemaphoreManager (src/state/semaphore.rs)
 
 ## Phase 7: Compatibility Validation
 
