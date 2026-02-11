@@ -2,6 +2,12 @@
 //!
 //! Handles parsing of cloud-config YAML format used by cloud-init.
 
+pub mod loader;
+pub mod merge;
+
+pub use loader::{ConfigLoader, load_full_config, load_merged_config};
+pub use merge::{ListMergeStrategy, merge_all_configs, merge_configs, merge_yaml_strings};
+
 use serde::{Deserialize, Serialize};
 
 /// Main cloud-config structure
