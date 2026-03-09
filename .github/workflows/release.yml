@@ -84,6 +84,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        run: |
+          VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          bash scripts/generate-changelog.sh --version "$VERSION"
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -99,7 +106,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: release/*
-          generate_release_notes: true
+          body_path: CHANGELOG.md
           draft: false
           prerelease: ${{ contains(github.ref, '-') }}
         env:
