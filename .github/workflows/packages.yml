@@ -24,6 +24,13 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        run: |
+          VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          bash scripts/generate-changelog.sh --version "$VERSION"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -83,6 +90,13 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog
+        run: |
+          VERSION=$(echo ${{ github.ref_name }} | sed 's/^v//')
+          bash scripts/generate-changelog.sh --version "$VERSION"
 
       - uses: dtolnay/rust-toolchain@stable
         with:
