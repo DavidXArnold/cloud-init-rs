@@ -155,19 +155,14 @@ pub enum RunCmd {
 }
 
 /// Error handling mode for command execution
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ErrorHandlingMode {
     /// Continue executing subsequent commands even if one fails (default)
+    #[default]
     Continue,
     /// Abort execution on the first command failure
     Abort,
-}
-
-impl Default for ErrorHandlingMode {
-    fn default() -> Self {
-        Self::Continue
-    }
 }
 
 /// Configuration for runcmd execution behavior
