@@ -365,3 +365,255 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== YUM Repos Module Tests ====================
+
+/// Test parsing a basic yum_repos cloud-config entry
+#[test]
+fn test_yum_repos_parse_basic() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  epel:
+    name: Extra Packages for Enterprise Linux 9
+    baseurl: https://download.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.yum_repos.len(), 1);
+
+    let repo = config.yum_repos.get("epel").unwrap();
+    assert_eq!(
+        repo.name,
+        Some("Extra Packages for Enterprise Linux 9".to_string())
+    );
+    assert_eq!(
+        repo.baseurl,
+        Some("https://download.fedoraproject.org/pub/epel/9/Everything/x86_64/".to_string())
+    );
+    assert_eq!(repo.enabled, Some(true));
+    assert_eq!(repo.gpgcheck, Some(true));
+    assert_eq!(
+        repo.gpgkey,
+        Some("https://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9".to_string())
+    );
+}
+
+/// Test parsing multiple repositories
+#[test]
+fn test_yum_repos_parse_multiple() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  epel:
+    name: EPEL
+    baseurl: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    enabled: true
+    gpgcheck: true
+  myrepo:
+    name: My Custom Repo
+    baseurl: https://example.com/repo/
+    enabled: false
+    gpgcheck: false
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.yum_repos.len(), 2);
+    assert!(config.yum_repos.contains_key("epel"));
+    assert!(config.yum_repos.contains_key("myrepo"));
+
+    let myrepo = config.yum_repos.get("myrepo").unwrap();
+    assert_eq!(myrepo.enabled, Some(false));
+    assert_eq!(myrepo.gpgcheck, Some(false));
+}
+
+/// Test parsing repository with mirrorlist
+#[test]
+fn test_yum_repos_parse_mirrorlist() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  centos-appstream:
+    name: CentOS Stream AppStream
+    mirrorlist: https://mirrors.centos.org/mirrorlist?repo=centos-appstream-9&arch=x86_64
+    enabled: true
+    gpgcheck: true
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let repo = config.yum_repos.get("centos-appstream").unwrap();
+    assert!(repo.baseurl.is_none());
+    assert!(repo.mirrorlist.is_some());
+    assert!(
+        repo.mirrorlist
+            .as_ref()
+            .unwrap()
+            .contains("centos-appstream-9")
+    );
+}
+
+/// Test parsing repository with all optional fields
+#[test]
+fn test_yum_repos_parse_full_config() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  custom-repo:
+    name: Custom Repository
+    baseurl: https://example.com/repo/
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://example.com/gpg-key.asc
+    skip_if_unavailable: true
+    failovermethod: priority
+    priority: 10
+    sslverify: true
+    exclude: "pkg1 pkg2"
+    includepkgs: "pkg3 pkg4"
+    type: rpm-md
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let repo = config.yum_repos.get("custom-repo").unwrap();
+    assert_eq!(repo.skip_if_unavailable, Some(true));
+    assert_eq!(repo.failovermethod, Some("priority".to_string()));
+    assert_eq!(repo.priority, Some(10));
+    assert_eq!(repo.sslverify, Some(true));
+    assert_eq!(repo.exclude, Some("pkg1 pkg2".to_string()));
+    assert_eq!(repo.includepkgs, Some("pkg3 pkg4".to_string()));
+    assert_eq!(repo.repo_type, Some("rpm-md".to_string()));
+}
+
+/// Test empty yum_repos produces empty map
+#[test]
+fn test_yum_repos_empty() {
+    let yaml = r#"#cloud-config
+hostname: myhost
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.yum_repos.is_empty());
+}
+
+/// Test repo file content generation for a basic repository
+#[test]
+fn test_yum_repos_generate_content_basic() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_repos::generate_repo_content;
+
+    let config = YumRepoConfig {
+        name: Some("Extra Packages for Enterprise Linux 9".to_string()),
+        baseurl: Some(
+            "https://download.fedoraproject.org/pub/epel/9/Everything/x86_64/".to_string(),
+        ),
+        enabled: Some(true),
+        gpgcheck: Some(true),
+        gpgkey: Some("https://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9".to_string()),
+        ..Default::default()
+    };
+
+    let content = generate_repo_content("epel", &config);
+
+    assert!(content.starts_with("[epel]\n"));
+    assert!(content.contains("name=Extra Packages for Enterprise Linux 9\n"));
+    assert!(
+        content
+            .contains("baseurl=https://download.fedoraproject.org/pub/epel/9/Everything/x86_64/\n")
+    );
+    assert!(content.contains("enabled=1\n"));
+    assert!(content.contains("gpgcheck=1\n"));
+    assert!(
+        content.contains("gpgkey=https://download.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9\n")
+    );
+}
+
+/// Test that boolean fields are rendered as 1/0
+#[test]
+fn test_yum_repos_boolean_rendering() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_repos::generate_repo_content;
+
+    let enabled = YumRepoConfig {
+        enabled: Some(true),
+        gpgcheck: Some(false),
+        skip_if_unavailable: Some(true),
+        sslverify: Some(false),
+        ..Default::default()
+    };
+    let content = generate_repo_content("test", &enabled);
+    assert!(content.contains("enabled=1\n"));
+    assert!(content.contains("gpgcheck=0\n"));
+    assert!(content.contains("skip_if_unavailable=1\n"));
+    assert!(content.contains("sslverify=0\n"));
+}
+
+/// Test that absent optional fields are omitted from the output
+#[test]
+fn test_yum_repos_omit_absent_fields() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_repos::generate_repo_content;
+
+    let config = YumRepoConfig {
+        name: Some("Minimal Repo".to_string()),
+        baseurl: Some("https://example.com/".to_string()),
+        ..Default::default()
+    };
+
+    let content = generate_repo_content("minimal", &config);
+
+    assert!(content.contains("[minimal]\n"));
+    assert!(content.contains("name=Minimal Repo\n"));
+    assert!(content.contains("baseurl=https://example.com/\n"));
+    // Fields not set should not appear
+    assert!(!content.contains("mirrorlist="));
+    assert!(!content.contains("gpgcheck="));
+    assert!(!content.contains("enabled="));
+    assert!(!content.contains("gpgkey="));
+}
+
+/// Test that newlines in string values are stripped to prevent INI injection
+#[test]
+fn test_yum_repos_newline_sanitization() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_repos::generate_repo_content;
+
+    let config = YumRepoConfig {
+        name: Some("Evil\nRepo[injected]\nname=pwned".to_string()),
+        baseurl: Some("https://example.com/".to_string()),
+        ..Default::default()
+    };
+
+    let content = generate_repo_content("test", &config);
+    // Newlines in values are replaced with spaces — [injected] must not appear
+    // as a standalone INI section header on its own line.
+    assert!(!content.contains("\n[injected]"));
+    // A rogue `name=pwned` key must not appear on its own line either.
+    assert!(!content.contains("\nname=pwned"));
+}
+
+/// Test file writing to a temporary directory
+#[tokio::test]
+async fn test_yum_repos_write_file() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_repos::generate_repo_content;
+    use std::fs;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let repo_id = "epel";
+    let config = YumRepoConfig {
+        name: Some("EPEL".to_string()),
+        baseurl: Some("https://example.com/epel/".to_string()),
+        enabled: Some(true),
+        gpgcheck: Some(true),
+        ..Default::default()
+    };
+
+    let content = generate_repo_content(repo_id, &config);
+    let file_path = temp_dir.path().join(format!("{}.repo", repo_id));
+    fs::write(&file_path, &content).unwrap();
+
+    let written = fs::read_to_string(&file_path).unwrap();
+    assert_eq!(written, content);
+    assert!(written.starts_with("[epel]\n"));
+    assert!(written.contains("enabled=1\n"));
+}

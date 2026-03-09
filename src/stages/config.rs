@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files, yum_repos};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -33,10 +33,13 @@ pub async fn run() -> Result<(), CloudInitError> {
     // 4. Write files (non-deferred)
     apply_write_files(&config, false).await?;
 
-    // 5. Package management
+    // 5. YUM/DNF repositories (before package installation)
+    apply_yum_repos(&config).await?;
+
+    // 6. Package management
     apply_packages(&config).await?;
 
-    // 6. Write files (deferred - after packages installed)
+    // 7. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
 
     info!("Config stage: completed");
@@ -165,6 +168,24 @@ async fn apply_write_files(config: &CloudConfig, deferred: bool) -> Result<(), C
         if let Err(e) = write_files::write_file(file_config).await {
             warn!("Failed to write file {}: {}", file_config.path, e);
         }
+    }
+
+    Ok(())
+}
+
+/// Apply YUM/DNF repository configuration
+async fn apply_yum_repos(config: &CloudConfig) -> Result<(), CloudInitError> {
+    if config.yum_repos.is_empty() {
+        return Ok(());
+    }
+
+    debug!(
+        "Configuring {} YUM/DNF repositories",
+        config.yum_repos.len()
+    );
+
+    if let Err(e) = yum_repos::configure_yum_repos(&config.yum_repos).await {
+        warn!("Failed to configure YUM repositories: {}", e);
     }
 
     Ok(())
