@@ -8,7 +8,9 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{
+    groups, hostname, locale, package_update, packages, timezone, users, write_files,
+};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -175,7 +177,7 @@ async fn apply_packages(config: &CloudConfig) -> Result<(), CloudInitError> {
     // Update package cache if requested
     if config.package_update == Some(true) {
         info!("Updating package cache");
-        if let Err(e) = packages::update_package_cache().await {
+        if let Err(e) = package_update::run().await {
             warn!("Failed to update package cache: {}", e);
             // Continue anyway - package install might still work
         }
