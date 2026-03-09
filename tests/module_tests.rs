@@ -1,6 +1,7 @@
 //! Tests for configuration modules
 
 use cloud_init_rs::config::{CloudConfig, RunCmd, WriteFileConfig};
+use cloud_init_rs::modules::resize_rootfs::{FilesystemType, parse_root_from_mounts};
 use std::fs;
 use tempfile::TempDir;
 
@@ -364,4 +365,77 @@ packages:
     assert_eq!(config.package_upgrade, Some(true));
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
+}
+
+// ==================== Resize Rootfs Module Tests ====================
+
+/// Test resize_rootfs enabled parsing
+#[test]
+fn test_resize_rootfs_enabled() {
+    let yaml = r#"#cloud-config
+resize_rootfs: true
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.resize_rootfs, Some(true));
+}
+
+/// Test resize_rootfs disabled parsing
+#[test]
+fn test_resize_rootfs_disabled() {
+    let yaml = r#"#cloud-config
+resize_rootfs: false
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.resize_rootfs, Some(false));
+}
+
+/// Test resize_rootfs not specified (defaults to enabled)
+#[test]
+fn test_resize_rootfs_not_specified() {
+    let yaml = r#"#cloud-config
+hostname: test
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.resize_rootfs, None);
+}
+
+/// Test parse_root_from_mounts with a real-world /proc/mounts-like input
+#[test]
+fn test_parse_root_from_mounts_with_typical_proc_mounts_format() {
+    let mounts = "\
+sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0\n\
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0\n\
+devtmpfs /dev devtmpfs rw,nosuid,size=4096k,nr_inodes=4096,mode=755 0 0\n\
+/dev/xvda1 / ext4 rw,relatime 0 0\n\
+tmpfs /dev/shm tmpfs rw,nosuid,nodev 0 0\n\
+";
+    let root = parse_root_from_mounts(mounts).unwrap();
+    assert_eq!(root.device, "/dev/xvda1");
+    assert_eq!(root.fs_type, FilesystemType::Ext4);
+}
+
+/// Test FilesystemType detection for known types
+#[test]
+fn test_resize_rootfs_filesystem_type_detection() {
+    let mounts_ext4 = "/dev/sda1 / ext4 rw 0 0\n";
+    let mounts_xfs = "/dev/sdb1 / xfs rw 0 0\n";
+    let mounts_btrfs = "/dev/sdc1 / btrfs rw 0 0\n";
+    let mounts_unknown = "/dev/sdd1 / zfs rw 0 0\n";
+
+    assert_eq!(
+        parse_root_from_mounts(mounts_ext4).unwrap().fs_type,
+        FilesystemType::Ext4
+    );
+    assert_eq!(
+        parse_root_from_mounts(mounts_xfs).unwrap().fs_type,
+        FilesystemType::Xfs
+    );
+    assert_eq!(
+        parse_root_from_mounts(mounts_btrfs).unwrap().fs_type,
+        FilesystemType::Btrfs
+    );
+    assert_eq!(
+        parse_root_from_mounts(mounts_unknown).unwrap().fs_type,
+        FilesystemType::Unknown("zfs".to_string())
+    );
 }

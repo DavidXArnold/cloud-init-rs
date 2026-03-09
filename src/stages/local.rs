@@ -8,9 +8,11 @@
 //! - Apply network configuration
 
 use crate::CloudInitError;
+use crate::config::loader::load_merged_config;
+use crate::modules::resize_rootfs;
 use crate::network::render::apply_network_config;
 use crate::network::v1::parse_network_config;
-use crate::state::InstanceState;
+use crate::state::{CloudPaths, InstanceState};
 use std::path::Path;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -113,6 +115,16 @@ async fn grow_partition() -> Result<(), CloudInitError> {
 
 async fn resize_filesystem() -> Result<(), CloudInitError> {
     debug!("Checking if filesystem needs to be resized");
-    // TODO: Implement filesystem resize (resize2fs, xfs_growfs, etc.)
-    Ok(())
+
+    // Load the cloud config to check if resize_rootfs is enabled
+    let paths = CloudPaths::new();
+    let enabled = match load_merged_config(&paths).await {
+        Ok(config) => config.resize_rootfs,
+        Err(e) => {
+            debug!("Could not load cloud config for resize_rootfs setting: {}", e);
+            None
+        }
+    };
+
+    resize_rootfs::resize_rootfs(enabled).await
 }
