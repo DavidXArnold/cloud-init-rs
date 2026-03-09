@@ -4,6 +4,7 @@
 //! Modules are executed in a defined order during the config and final stages.
 
 pub mod bootcmd;
+pub mod disk_setup;
 pub mod groups;
 pub mod hostname;
 pub mod locale;
