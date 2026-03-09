@@ -272,4 +272,82 @@ write_files:
         let merged = merge_configs(&base, &overlay);
         assert_eq!(merged.write_files.len(), 2);
     }
+
+    #[test]
+    fn test_list_merge_strategy_parse_noreplace() {
+        assert_eq!(
+            ListMergeStrategy::parse("noreplace"),
+            ListMergeStrategy::NoReplace
+        );
+        // Unknown string falls back to Append
+        assert_eq!(
+            ListMergeStrategy::parse("unknown"),
+            ListMergeStrategy::Append
+        );
+    }
+
+    #[test]
+    fn test_merge_yaml_values_overlay_only_keys() {
+        let base = serde_yaml::from_str::<Value>("a: 1").unwrap();
+        let overlay = serde_yaml::from_str::<Value>("b: 2").unwrap();
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Append);
+        let map = merged.as_mapping().unwrap();
+        assert!(map.contains_key(Value::String("a".into())));
+        assert!(map.contains_key(Value::String("b".into())));
+    }
+
+    #[test]
+    fn test_merge_yaml_values_prepend() {
+        let base = serde_yaml::from_str::<Value>("[1, 2, 3]").unwrap();
+        let overlay = serde_yaml::from_str::<Value>("[4, 5]").unwrap();
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Prepend);
+        let seq = merged.as_sequence().unwrap();
+        // Prepend: overlay first, then unique base items
+        assert_eq!(seq.len(), 5);
+        assert_eq!(seq[0], Value::Number(4.into()));
+        assert_eq!(seq[1], Value::Number(5.into()));
+    }
+
+    #[test]
+    fn test_merge_yaml_values_prepend_dedup() {
+        let base = serde_yaml::from_str::<Value>("[1, 2]").unwrap();
+        let overlay = serde_yaml::from_str::<Value>("[2, 3]").unwrap();
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Prepend);
+        let seq = merged.as_sequence().unwrap();
+        // overlay [2,3] + unique from base [1] = [2,3,1]
+        assert_eq!(seq.len(), 3);
+    }
+
+    #[test]
+    fn test_merge_yaml_values_no_replace() {
+        let base = serde_yaml::from_str::<Value>("[1, 2]").unwrap();
+        let overlay = serde_yaml::from_str::<Value>("[3, 4]").unwrap();
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::NoReplace);
+        let seq = merged.as_sequence().unwrap();
+        // NoReplace: keep base
+        assert_eq!(seq.len(), 2);
+        assert_eq!(seq[0], Value::Number(1.into()));
+    }
+
+    #[test]
+    fn test_merge_yaml_values_null_overlay() {
+        let base = serde_yaml::from_str::<Value>("hello").unwrap();
+        let overlay = Value::Null;
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Append);
+        assert_eq!(merged, Value::String("hello".into()));
+    }
+
+    #[test]
+    fn test_merge_yaml_values_scalar_overlay_wins() {
+        let base = serde_yaml::from_str::<Value>("old").unwrap();
+        let overlay = serde_yaml::from_str::<Value>("new").unwrap();
+
+        let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Append);
+        assert_eq!(merged, Value::String("new".into()));
+    }
 }

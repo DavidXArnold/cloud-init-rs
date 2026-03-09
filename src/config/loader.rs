@@ -356,4 +356,210 @@ mod tests {
         // Vendor-data provides timezone
         assert_eq!(config.timezone, Some("UTC".to_string()));
     }
+
+    #[tokio::test]
+    async fn test_load_config_file_malformed_yaml() {
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("bad.cfg");
+
+        fs::write(&path, "#cloud-config\nhostname: [invalid")
+            .await
+            .unwrap();
+
+        // Malformed YAML returns None (warns but doesn't error)
+        let result = load_config_file(&path).await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_full_config_malformed_vendordata() {
+        let temp = TempDir::new().unwrap();
+        let config_dir = temp.path().join("etc/cloud");
+        fs::create_dir_all(&config_dir).await.unwrap();
+
+        fs::write(
+            config_dir.join("cloud.cfg"),
+            "#cloud-config\nhostname: base",
+        )
+        .await
+        .unwrap();
+
+        let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
+
+        // Malformed vendor-data is silently skipped
+        let config = load_full_config(&paths, None, Some("#cloud-config\nhostname: [invalid"))
+            .await
+            .unwrap();
+
+        assert_eq!(config.hostname, Some("base".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_load_full_config_malformed_userdata() {
+        let temp = TempDir::new().unwrap();
+        let config_dir = temp.path().join("etc/cloud");
+        fs::create_dir_all(&config_dir).await.unwrap();
+
+        fs::write(
+            config_dir.join("cloud.cfg"),
+            "#cloud-config\nhostname: base",
+        )
+        .await
+        .unwrap();
+
+        let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
+
+        // Malformed user-data is silently skipped
+        let config = load_full_config(&paths, Some("#cloud-config\nhostname: [invalid"), None)
+            .await
+            .unwrap();
+
+        assert_eq!(config.hostname, Some("base".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_load_full_config_non_cloud_config_data() {
+        let temp = TempDir::new().unwrap();
+        let config_dir = temp.path().join("etc/cloud");
+        fs::create_dir_all(&config_dir).await.unwrap();
+
+        fs::write(
+            config_dir.join("cloud.cfg"),
+            "#cloud-config\nhostname: base",
+        )
+        .await
+        .unwrap();
+
+        let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
+
+        // Non-cloud-config data (e.g. shell script) is ignored
+        let config = load_full_config(
+            &paths,
+            Some("#!/bin/bash\necho hello"),
+            Some("#!/bin/bash\necho vendor"),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(config.hostname, Some("base".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_with_paths() {
+        let temp = TempDir::new().unwrap();
+        let config_dir = temp.path().join("etc/cloud");
+        fs::create_dir_all(&config_dir).await.unwrap();
+
+        fs::write(
+            config_dir.join("cloud.cfg"),
+            "#cloud-config\nhostname: custom-paths",
+        )
+        .await
+        .unwrap();
+
+        let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
+        let config = ConfigLoader::new()
+            .with_paths(paths)
+            .skip_dropins()
+            .load()
+            .await
+            .unwrap();
+
+        assert_eq!(config.hostname, Some("custom-paths".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_with_vendordata() {
+        let config = ConfigLoader::new()
+            .skip_system()
+            .skip_dropins()
+            .with_vendordata("#cloud-config\ntimezone: UTC")
+            .load()
+            .await
+            .unwrap();
+
+        assert_eq!(config.timezone, Some("UTC".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_with_vendordata_and_userdata() {
+        let config = ConfigLoader::new()
+            .skip_system()
+            .skip_dropins()
+            .with_vendordata("#cloud-config\nhostname: vendor\ntimezone: UTC")
+            .with_userdata("#cloud-config\nhostname: user")
+            .load()
+            .await
+            .unwrap();
+
+        // User-data takes precedence
+        assert_eq!(config.hostname, Some("user".to_string()));
+        // Vendor-data fills in the rest
+        assert_eq!(config.timezone, Some("UTC".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_non_cloud_config_vendordata() {
+        let config = ConfigLoader::new()
+            .skip_system()
+            .skip_dropins()
+            .with_vendordata("#!/bin/bash\necho hello")
+            .load()
+            .await
+            .unwrap();
+
+        // Non-cloud-config vendor-data is ignored
+        assert!(config.hostname.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_non_cloud_config_userdata() {
+        let config = ConfigLoader::new()
+            .skip_system()
+            .skip_dropins()
+            .with_userdata("#!/bin/bash\necho hello")
+            .load()
+            .await
+            .unwrap();
+
+        // Non-cloud-config user-data is ignored
+        assert!(config.hostname.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_config_loader_default() {
+        // Default impl works the same as new()
+        let loader = ConfigLoader::default();
+        let config = loader.skip_system().skip_dropins().load().await.unwrap();
+
+        assert!(config.hostname.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_load_dropin_configs_nonexistent_dir() {
+        let configs = load_dropin_configs("/nonexistent/dropin/dir")
+            .await
+            .unwrap();
+        assert!(configs.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_load_dropin_configs_malformed_file() {
+        let temp = TempDir::new().unwrap();
+        let dir = temp.path().join("cloud.cfg.d");
+        fs::create_dir_all(&dir).await.unwrap();
+
+        // One valid, one malformed
+        fs::write(dir.join("00-good.cfg"), "#cloud-config\nhostname: good")
+            .await
+            .unwrap();
+        fs::write(dir.join("01-bad.cfg"), "#cloud-config\nhostname: [invalid")
+            .await
+            .unwrap();
+
+        let configs = load_dropin_configs(&dir).await.unwrap();
+        // Malformed file is skipped, only good one loaded
+        assert_eq!(configs.len(), 1);
+        assert_eq!(configs[0].hostname, Some("good".to_string()));
+    }
 }
