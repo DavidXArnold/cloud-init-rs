@@ -205,7 +205,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 ### Package Management (Medium Priority)
 - [x] `packages` - Install packages (apt/dnf/yum/zypper/apk)
 - [ ] `package_update` - Update package cache
-- [ ] `package_upgrade` - Upgrade packages
+- [x] `package_upgrade` - Upgrade packages
 - [ ] `apt` - APT-specific config
 - [ ] `yum_repos` - YUM repositories
 - [ ] `snap` - Snap packages

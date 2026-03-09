@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{groups, hostname, locale, package_upgrade, packages, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -184,7 +184,7 @@ async fn apply_packages(config: &CloudConfig) -> Result<(), CloudInitError> {
     // Upgrade packages if requested
     if config.package_upgrade == Some(true) {
         info!("Upgrading packages");
-        if let Err(e) = packages::upgrade_packages().await {
+        if let Err(e) = package_upgrade::run().await {
             warn!("Failed to upgrade packages: {}", e);
         }
     }
