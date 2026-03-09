@@ -4,3 +4,6 @@ runcmd:
   - [mkdir, -p, /opt/myapp]
   - ["bash", "-c", "echo 'test' > /tmp/output"]
   - systemctl enable nginx
+runcmd_config:
+  shell: /bin/bash
+  error_handling: continue
