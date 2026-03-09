@@ -1,0 +1,35 @@
+#cloud-config
+# Example mounts configuration
+#
+# Each entry is a list of up to 6 fields:
+#   [device, mount_point, fs_type, options, dump, pass]
+#
+# Fields may be omitted or set to null (~) to use values from
+# mount_default_fields or the built-in defaults:
+#   fs_type: auto, options: defaults, dump: 0, pass: 2
+
+mounts:
+  # Standard data partition
+  - [/dev/sda1, /mnt/data, ext4, defaults, 0, 2]
+
+  # noatime for better SSD performance
+  - [/dev/sdb, /mnt/backup, xfs, "defaults,noatime", 0, 2]
+
+  # Use UUID to identify the device (robust across reboots)
+  - [UUID=1234abcd-5678-efgh-0000-ijklmnopqrst, /boot, vfat, defaults, 0, 1]
+
+  # Null fields inherit from mount_default_fields or built-in defaults
+  - [/dev/sdc, /data, ~, ~, ~, ~]
+
+  # Swap partition
+  - [swap, none, swap, sw, 0, 0]
+
+# Override default field values for entries with null/absent fields
+# Positions: [device, mount_point, fs_type, options, dump, pass]
+mount_default_fields: [~, ~, auto, defaults, '0', '2']
+
+# Swap file configuration (creates /swap.img if it does not exist)
+swap:
+  filename: /swap.img
+  size: auto      # Use total RAM as swap size
+  maxsize: 4096   # Cap at 4 GiB

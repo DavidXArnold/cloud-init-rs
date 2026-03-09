@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{groups, hostname, locale, mounts, packages, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -38,6 +38,9 @@ pub async fn run() -> Result<(), CloudInitError> {
 
     // 6. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
+
+    // 7. Configure filesystem mounts (after files/packages so dependencies are met)
+    apply_mounts(&config).await?;
 
     info!("Config stage: completed");
     Ok(())
@@ -193,6 +196,31 @@ async fn apply_packages(config: &CloudConfig) -> Result<(), CloudInitError> {
     if !config.packages.is_empty() {
         info!("Installing {} packages", config.packages.len());
         packages::install_packages(&config.packages).await?;
+    }
+
+    Ok(())
+}
+
+/// Apply mounts configuration
+async fn apply_mounts(config: &CloudConfig) -> Result<(), CloudInitError> {
+    if config.mounts.is_empty() && config.swap.is_none() {
+        return Ok(());
+    }
+
+    debug!(
+        "Configuring mounts ({} entries, swap: {})",
+        config.mounts.len(),
+        config.swap.is_some()
+    );
+
+    if let Err(e) = mounts::configure_mounts(
+        &config.mounts,
+        &config.mount_default_fields,
+        config.swap.as_ref(),
+    )
+    .await
+    {
+        warn!("Failed to configure mounts: {}", e);
     }
 
     Ok(())

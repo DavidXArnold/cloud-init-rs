@@ -85,6 +85,21 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// Filesystem mount entries
+    #[serde(default)]
+    pub mounts: Vec<MountEntry>,
+
+    /// Default field values for mount entries
+    ///
+    /// Six optional values corresponding to: device, mount_point, fs_type,
+    /// options, dump, pass.  Cloud-init's built-in defaults are:
+    /// `[null, null, "auto", "defaults", "0", "2"]`.
+    #[serde(default)]
+    pub mount_default_fields: Vec<Option<MountFieldValue>>,
+
+    /// Swap file / partition configuration
+    pub swap: Option<SwapConfig>,
 }
 
 /// User configuration
@@ -188,6 +203,62 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// A value that can appear in a mount entry: either a string or an integer.
+///
+/// Supports the YAML convention where numeric fields (dump, pass) may be
+/// written as integers (e.g., `0` or `2`) or as quoted strings (e.g., `'0'`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MountFieldValue {
+    /// String value
+    Text(String),
+    /// Integer value (converted to string when used in fstab)
+    Integer(i64),
+}
+
+impl MountFieldValue {
+    /// Return the string representation of this value.
+    pub fn as_str_val(&self) -> String {
+        match self {
+            Self::Text(s) => s.clone(),
+            Self::Integer(n) => n.to_string(),
+        }
+    }
+}
+
+/// A single mount entry in fstab format.
+///
+/// Specified as a YAML list with 2 to 6 elements:
+/// `[device, mount_point, fs_type?, options?, dump?, pass?]`
+///
+/// Each field may be `null` to inherit the value from `mount_default_fields`.
+/// Numeric fields (dump, pass) may be integers or quoted strings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct MountEntry(pub Vec<Option<MountFieldValue>>);
+
+impl MountEntry {
+    /// Return the field values as optional strings (None for null/missing fields).
+    pub fn fields(&self) -> Vec<Option<String>> {
+        self.0
+            .iter()
+            .map(|f| f.as_ref().map(|v| v.as_str_val()))
+            .collect()
+    }
+}
+
+/// Swap file or partition configuration.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SwapConfig {
+    /// Path to the swap file (default: `/swap.img`)
+    pub filename: Option<String>,
+    /// Swap size in MiB, or `"auto"` to use total RAM size
+    pub size: Option<String>,
+    /// Maximum swap size in MiB (caps the `auto` or numeric size)
+    pub maxsize: Option<u64>,
 }
 
 impl CloudConfig {
@@ -673,5 +744,154 @@ runcmd:
         assert_eq!(config.packages.len(), 2);
         assert_eq!(config.write_files.len(), 1);
         assert_eq!(config.runcmd.len(), 1);
+    }
+
+    // ==================== Mounts Configuration Tests ====================
+
+    #[test]
+    fn test_parse_mounts_basic() {
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [/dev/sda1, /mnt/data, ext4, defaults, 0, 2]
+  - [/dev/sdb, /mnt/backup, xfs, "defaults,noatime", 0, 2]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.mounts.len(), 2);
+
+        let fields0 = config.mounts[0].fields();
+        assert_eq!(fields0[0], Some("/dev/sda1".to_string()));
+        assert_eq!(fields0[1], Some("/mnt/data".to_string()));
+        assert_eq!(fields0[2], Some("ext4".to_string()));
+        assert_eq!(fields0[3], Some("defaults".to_string()));
+        assert_eq!(fields0[4], Some("0".to_string()));
+        assert_eq!(fields0[5], Some("2".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mounts_swap() {
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [swap, none, swap, sw, 0, 0]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.mounts.len(), 1);
+
+        let fields = config.mounts[0].fields();
+        assert_eq!(fields[0], Some("swap".to_string()));
+        assert_eq!(fields[1], Some("none".to_string()));
+        assert_eq!(fields[2], Some("swap".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mounts_with_null_fields() {
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [/dev/sdc, /data, ~, ~, ~, ~]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let fields = config.mounts[0].fields();
+        assert_eq!(fields[0], Some("/dev/sdc".to_string()));
+        assert_eq!(fields[1], Some("/data".to_string()));
+        assert_eq!(fields[2], None);
+        assert_eq!(fields[3], None);
+        assert_eq!(fields[4], None);
+        assert_eq!(fields[5], None);
+    }
+
+    #[test]
+    fn test_parse_mounts_partial_fields() {
+        // Only device and mount point provided
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [/dev/sda2, /opt]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let fields = config.mounts[0].fields();
+        assert_eq!(fields.len(), 2);
+        assert_eq!(fields[0], Some("/dev/sda2".to_string()));
+        assert_eq!(fields[1], Some("/opt".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mounts_integer_fields() {
+        // dump and pass as unquoted integers
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [/dev/sda1, /mnt, ext4, defaults, 0, 2]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let fields = config.mounts[0].fields();
+        // Integer 0 and 2 should be coerced to strings
+        assert_eq!(fields[4], Some("0".to_string()));
+        assert_eq!(fields[5], Some("2".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mount_default_fields() {
+        let yaml = r#"
+#cloud-config
+mount_default_fields: [~, ~, auto, defaults, '0', '2']
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert_eq!(config.mount_default_fields.len(), 6);
+        let defaults: Vec<Option<String>> = config
+            .mount_default_fields
+            .iter()
+            .map(|f| f.as_ref().map(|v| v.as_str_val()))
+            .collect();
+        assert_eq!(defaults[0], None);
+        assert_eq!(defaults[1], None);
+        assert_eq!(defaults[2], Some("auto".to_string()));
+        assert_eq!(defaults[3], Some("defaults".to_string()));
+        assert_eq!(defaults[4], Some("0".to_string()));
+        assert_eq!(defaults[5], Some("2".to_string()));
+    }
+
+    #[test]
+    fn test_parse_swap_config() {
+        let yaml = r#"
+#cloud-config
+swap:
+  filename: /swap.img
+  size: auto
+  maxsize: 4096
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let swap = config.swap.unwrap();
+        assert_eq!(swap.filename, Some("/swap.img".to_string()));
+        assert_eq!(swap.size, Some("auto".to_string()));
+        assert_eq!(swap.maxsize, Some(4096));
+    }
+
+    #[test]
+    fn test_parse_swap_config_numeric_size() {
+        let yaml = r#"
+#cloud-config
+swap:
+  filename: /swapfile
+  size: '2048'
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let swap = config.swap.unwrap();
+        assert_eq!(swap.size, Some("2048".to_string()));
+        assert_eq!(swap.maxsize, None);
+    }
+
+    #[test]
+    fn test_parse_mounts_uuid_device() {
+        let yaml = r#"
+#cloud-config
+mounts:
+  - [UUID=1234-5678, /boot, vfat, defaults, 0, 1]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let fields = config.mounts[0].fields();
+        assert_eq!(fields[0], Some("UUID=1234-5678".to_string()));
+        assert_eq!(fields[5], Some("1".to_string()));
     }
 }
