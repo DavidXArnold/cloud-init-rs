@@ -196,7 +196,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [x] `ntp` - NTP configuration (chrony/timesyncd/ntpd)
 
 ### Disk and Filesystem (Medium Priority)
-- [ ] `growpart` - Grow partitions
+- [x] `growpart` - Grow partitions
 - [ ] `resize_rootfs` - Resize root filesystem
 - [ ] `mounts` - Configure mounts
 - [ ] `disk_setup` - Partition disks

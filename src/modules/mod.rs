@@ -5,6 +5,7 @@
 
 pub mod bootcmd;
 pub mod groups;
+pub mod growpart;
 pub mod hostname;
 pub mod locale;
 pub mod ntp;
