@@ -85,6 +85,9 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// Snap configuration
+    pub snap: Option<SnapConfig>,
 }
 
 /// User configuration
@@ -188,6 +191,19 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// Snap configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SnapConfig {
+    /// Snap commands to run (e.g. `snap install docker`)
+    #[serde(default)]
+    pub commands: Vec<RunCmd>,
+
+    /// Snap assertions to acknowledge before installing packages
+    #[serde(default)]
+    pub assertions: Vec<String>,
 }
 
 impl CloudConfig {
@@ -588,6 +604,102 @@ final_message: |
                 .unwrap()
                 .contains("Cloud-init completed")
         );
+    }
+
+    // ==================== Snap Configuration Tests ====================
+
+    #[test]
+    fn test_parse_snap_commands_strings() {
+        let yaml = r#"
+#cloud-config
+snap:
+  commands:
+    - snap install docker
+    - snap install lxd --channel=latest/stable
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let snap = config.snap.unwrap();
+        assert_eq!(snap.commands.len(), 2);
+        assert!(matches!(&snap.commands[0], RunCmd::Shell(s) if s == "snap install docker"));
+    }
+
+    #[test]
+    fn test_parse_snap_commands_arrays() {
+        let yaml = r#"
+#cloud-config
+snap:
+  commands:
+    - ["snap", "install", "--classic", "code"]
+    - ["snap", "install", "hello-world"]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let snap = config.snap.unwrap();
+        assert_eq!(snap.commands.len(), 2);
+        match &snap.commands[0] {
+            RunCmd::Args(args) => {
+                assert_eq!(args[0], "snap");
+                assert_eq!(args[2], "--classic");
+                assert_eq!(args[3], "code");
+            }
+            _ => panic!("Expected Args variant"),
+        }
+    }
+
+    #[test]
+    fn test_parse_snap_assertions() {
+        let yaml = r#"
+#cloud-config
+snap:
+  assertions:
+    - |
+      type: account-key
+      authority-id: canonical
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let snap = config.snap.unwrap();
+        assert_eq!(snap.assertions.len(), 1);
+        assert!(snap.assertions[0].contains("type: account-key"));
+    }
+
+    #[test]
+    fn test_parse_snap_full_config() {
+        let yaml = r#"
+#cloud-config
+snap:
+  assertions:
+    - |
+      type: account-key
+      authority-id: canonical
+  commands:
+    - snap install docker
+    - ["snap", "install", "--devmode", "my-snap"]
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let snap = config.snap.unwrap();
+        assert_eq!(snap.assertions.len(), 1);
+        assert_eq!(snap.commands.len(), 2);
+    }
+
+    #[test]
+    fn test_parse_snap_absent() {
+        let yaml = r#"
+#cloud-config
+hostname: test
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config.snap.is_none());
+    }
+
+    #[test]
+    fn test_parse_snap_empty() {
+        let yaml = r#"
+#cloud-config
+snap: {}
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let snap = config.snap.unwrap();
+        assert!(snap.commands.is_empty());
+        assert!(snap.assertions.is_empty());
     }
 
     // ==================== Error Handling Tests ====================

@@ -10,6 +10,7 @@ pub mod locale;
 pub mod ntp;
 pub mod packages;
 pub mod runcmd;
+pub mod snap;
 pub mod ssh_keys;
 pub mod timezone;
 pub mod users;

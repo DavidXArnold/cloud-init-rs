@@ -1,0 +1,25 @@
+#cloud-config
+# Snap package management configuration
+
+snap:
+  # Snap assertions must be acknowledged before installing snaps that depend on them
+  assertions:
+    - |
+      type: account-key
+      authority-id: canonical
+      revision: 2
+      public-key-sha3-384: BWDEoaqyr25nF5SNCvEv2v7QnM9QsfCc0PBMYD_i2NGSQ32EF2d4D0hqUel3m8ul
+
+  # Snap commands to execute (strings or argument arrays)
+  commands:
+    # Install a snap using a shell command string
+    - snap install hello-world
+
+    # Install with --classic confinement using argument array
+    - ["snap", "install", "--classic", "code"]
+
+    # Install with --devmode confinement
+    - ["snap", "install", "--devmode", "my-dev-snap"]
+
+    # Install from a specific channel
+    - snap install lxd --channel=latest/stable
