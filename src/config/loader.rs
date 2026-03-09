@@ -387,13 +387,9 @@ mod tests {
         let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
 
         // Malformed vendor-data is silently skipped
-        let config = load_full_config(
-            &paths,
-            None,
-            Some("#cloud-config\nhostname: [invalid"),
-        )
-        .await
-        .unwrap();
+        let config = load_full_config(&paths, None, Some("#cloud-config\nhostname: [invalid"))
+            .await
+            .unwrap();
 
         assert_eq!(config.hostname, Some("base".to_string()));
     }
@@ -414,13 +410,9 @@ mod tests {
         let paths = CloudPaths::with_dirs(temp.path(), &config_dir);
 
         // Malformed user-data is silently skipped
-        let config = load_full_config(
-            &paths,
-            Some("#cloud-config\nhostname: [invalid"),
-            None,
-        )
-        .await
-        .unwrap();
+        let config = load_full_config(&paths, Some("#cloud-config\nhostname: [invalid"), None)
+            .await
+            .unwrap();
 
         assert_eq!(config.hostname, Some("base".to_string()));
     }
@@ -538,19 +530,16 @@ mod tests {
     async fn test_config_loader_default() {
         // Default impl works the same as new()
         let loader = ConfigLoader::default();
-        let config = loader
-            .skip_system()
-            .skip_dropins()
-            .load()
-            .await
-            .unwrap();
+        let config = loader.skip_system().skip_dropins().load().await.unwrap();
 
         assert!(config.hostname.is_none());
     }
 
     #[tokio::test]
     async fn test_load_dropin_configs_nonexistent_dir() {
-        let configs = load_dropin_configs("/nonexistent/dropin/dir").await.unwrap();
+        let configs = load_dropin_configs("/nonexistent/dropin/dir")
+            .await
+            .unwrap();
         assert!(configs.is_empty());
     }
 
