@@ -14,6 +14,7 @@ pub mod ssh_keys;
 pub mod timezone;
 pub mod users;
 pub mod write_files;
+pub mod yum_repos;
 
 /// Module execution frequency
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

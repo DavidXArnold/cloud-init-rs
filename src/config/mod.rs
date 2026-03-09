@@ -8,6 +8,8 @@ pub mod merge;
 pub use loader::{ConfigLoader, load_full_config, load_merged_config};
 pub use merge::{ListMergeStrategy, merge_all_configs, merge_configs, merge_yaml_strings};
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// Main cloud-config structure
@@ -85,6 +87,10 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// YUM/DNF repository configuration
+    #[serde(default)]
+    pub yum_repos: HashMap<String, YumRepoConfig>,
 }
 
 /// User configuration
@@ -190,8 +196,67 @@ pub struct NtpConfig {
     pub pools: Vec<String>,
 }
 
+/// YUM/DNF repository configuration
+///
+/// Each entry in the `yum_repos` map corresponds to a repository
+/// that will be written to `/etc/yum.repos.d/<id>.repo`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct YumRepoConfig {
+    /// Human-readable repository name
+    pub name: Option<String>,
+
+    /// Base URL for the repository
+    pub baseurl: Option<String>,
+
+    /// URL to a mirror list
+    pub mirrorlist: Option<String>,
+
+    /// URL to a metalink file
+    pub metalink: Option<String>,
+
+    /// Whether the repository is enabled (default: true)
+    pub enabled: Option<bool>,
+
+    /// Whether to verify GPG signatures on packages
+    pub gpgcheck: Option<bool>,
+
+    /// URL(s) to the GPG key(s) used to sign packages
+    pub gpgkey: Option<String>,
+
+    /// Skip this repository if it is unavailable
+    pub skip_if_unavailable: Option<bool>,
+
+    /// Failover method: `"priority"` or `"roundrobin"`
+    pub failovermethod: Option<String>,
+
+    /// Repository priority (lower value = higher priority)
+    pub priority: Option<u32>,
+
+    /// Whether to verify SSL certificates
+    pub sslverify: Option<bool>,
+
+    /// Path to CA certificate bundle for SSL verification
+    pub sslcacert: Option<String>,
+
+    /// Path to client SSL certificate
+    pub sslclientcert: Option<String>,
+
+    /// Path to client SSL key
+    pub sslclientkey: Option<String>,
+
+    /// Space-separated list of packages to exclude from this repository
+    pub exclude: Option<String>,
+
+    /// Space-separated list of packages to include from this repository
+    pub includepkgs: Option<String>,
+
+    /// Repository type (e.g. `"rpm-md"`)
+    #[serde(rename = "type")]
+    pub repo_type: Option<String>,
+}
+
 impl CloudConfig {
-    /// Parse cloud-config from YAML string
     pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
         // Strip #cloud-config header if present
         let yaml = yaml
