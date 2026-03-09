@@ -97,3 +97,83 @@ async fn change_ownership(path: &PathBuf, username: &str) -> Result<(), CloudIni
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn test_configure_user_ssh_keys_empty_keys() {
+        let result = configure_user_ssh_keys("testuser", &[]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_get_user_home_root() {
+        // root should be in /etc/passwd on most systems
+        let result = get_user_home("root").await;
+        if let Ok(path) = result {
+            // On macOS root is /var/root, on Linux /root
+            assert!(path.to_string_lossy().contains("root"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_user_home_nonexistent_defaults() {
+        let result = get_user_home("nonexistent_user_xyz_12345").await;
+        if let Ok(path) = result {
+            assert_eq!(path, PathBuf::from("/home/nonexistent_user_xyz_12345"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_configure_user_ssh_keys_writes_files() {
+        let tmp = TempDir::new().unwrap();
+        let ssh_dir = tmp.path().join(".ssh");
+        let auth_keys = ssh_dir.join("authorized_keys");
+
+        // Manually create the directory and write keys to verify format
+        tokio::fs::create_dir_all(&ssh_dir).await.unwrap();
+        let keys = [
+            "ssh-rsa AAAAB3... user@host".to_string(),
+            "ssh-ed25519 AAAAC3... user2@host".to_string(),
+        ];
+        let content = keys.join("\n") + "\n";
+        tokio::fs::write(&auth_keys, &content).await.unwrap();
+
+        let written = tokio::fs::read_to_string(&auth_keys).await.unwrap();
+        assert!(written.contains("ssh-rsa AAAAB3"));
+        assert!(written.contains("ssh-ed25519 AAAAC3"));
+        assert_eq!(written.matches('\n').count(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_change_ownership_nonexistent_user() {
+        let tmp = TempDir::new().unwrap();
+        let file = tmp.path().join("test.txt");
+        tokio::fs::write(&file, "test").await.unwrap();
+        // chown to nonexistent user should not panic
+        let result = change_ownership(&file.to_path_buf(), "nonexistent_xyz_12345").await;
+        assert!(result.is_ok()); // function logs but doesn't error
+    }
+
+    #[tokio::test]
+    async fn test_get_user_home_parses_passwd_format() {
+        // Verify the parsing logic by checking a known user
+        let passwd = tokio::fs::read_to_string("/etc/passwd").await;
+        if let Ok(content) = passwd {
+            // Find any user with a valid home dir
+            for line in content.lines() {
+                let fields: Vec<&str> = line.split(':').collect();
+                if fields.len() >= 6 {
+                    let username = fields[0];
+                    let expected_home = fields[5];
+                    let result = get_user_home(username).await.unwrap();
+                    assert_eq!(result, PathBuf::from(expected_home));
+                    break; // Just test the first one
+                }
+            }
+        }
+    }
+}

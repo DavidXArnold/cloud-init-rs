@@ -38,3 +38,65 @@ pub trait Module {
         Frequency::PerInstance
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_frequency_variants() {
+        let per_instance = Frequency::PerInstance;
+        let per_once = Frequency::PerOnce;
+        let per_boot = Frequency::PerBoot;
+        let always = Frequency::Always;
+
+        assert_eq!(per_instance, Frequency::PerInstance);
+        assert_eq!(per_once, Frequency::PerOnce);
+        assert_eq!(per_boot, Frequency::PerBoot);
+        assert_eq!(always, Frequency::Always);
+        assert_ne!(per_instance, Frequency::Always);
+    }
+
+    #[test]
+    fn test_frequency_debug() {
+        let f = Frequency::PerInstance;
+        assert_eq!(format!("{f:?}"), "PerInstance");
+    }
+
+    #[test]
+    fn test_frequency_clone() {
+        let f = Frequency::PerBoot;
+        let cloned = f;
+        assert_eq!(f, cloned);
+    }
+
+    struct TestModule;
+    impl Module for TestModule {
+        fn name(&self) -> &'static str {
+            "test_module"
+        }
+    }
+
+    #[test]
+    fn test_module_trait_default_frequency() {
+        let m = TestModule;
+        assert_eq!(m.name(), "test_module");
+        assert_eq!(m.frequency(), Frequency::PerInstance);
+    }
+
+    struct CustomFreqModule;
+    impl Module for CustomFreqModule {
+        fn name(&self) -> &'static str {
+            "custom"
+        }
+        fn frequency(&self) -> Frequency {
+            Frequency::PerBoot
+        }
+    }
+
+    #[test]
+    fn test_module_trait_custom_frequency() {
+        let m = CustomFreqModule;
+        assert_eq!(m.frequency(), Frequency::PerBoot);
+    }
+}

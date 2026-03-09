@@ -97,3 +97,59 @@ async fn write_etc_timezone(timezone: &str) -> Result<(), CloudInitError> {
     debug!("Wrote /etc/timezone");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_set_timezone_invalid() {
+        let result = set_timezone("Invalid/Not_A_Timezone").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("Invalid timezone"));
+    }
+
+    #[tokio::test]
+    async fn test_set_timezone_valid_utc() {
+        // UTC exists on most systems in /usr/share/zoneinfo
+        let result = set_timezone("UTC").await;
+        // May fail due to permissions but should not return InvalidData
+        if let Err(e) = &result {
+            let msg = e.to_string();
+            assert!(
+                !msg.contains("Invalid timezone"),
+                "UTC should be a valid timezone"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_try_timedatectl_nonexistent_tz() {
+        // timedatectl may not exist on macOS
+        let result = try_timedatectl("US/Eastern").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_set_timezone_america_new_york() {
+        let result = set_timezone("America/New_York").await;
+        if let Err(e) = &result {
+            let msg = e.to_string();
+            assert!(!msg.contains("Invalid timezone"));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_set_timezone_empty_string() {
+        let result = set_timezone("").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_timezone_path_traversal() {
+        let result = set_timezone("../../etc/passwd").await;
+        // This should fail - the file won't exist in zoneinfo
+        assert!(result.is_err());
+    }
+}

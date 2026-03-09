@@ -156,3 +156,342 @@ async fn set_ownership(path: &Path, owner: &str) -> Result<(), CloudInitError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    #[test]
+    fn test_decode_content_no_encoding() {
+        assert_eq!(decode_content("hello world", None).unwrap(), "hello world");
+    }
+
+    #[test]
+    fn test_decode_content_base64() {
+        use base64::Engine;
+        let encoded = BASE64.encode("decoded text");
+        assert_eq!(
+            decode_content(&encoded, Some("base64")).unwrap(),
+            "decoded text"
+        );
+    }
+
+    #[test]
+    fn test_decode_content_b64_alias() {
+        use base64::Engine;
+        let encoded = BASE64.encode("b64 alias");
+        assert_eq!(decode_content(&encoded, Some("b64")).unwrap(), "b64 alias");
+    }
+
+    #[test]
+    fn test_decode_content_invalid_base64() {
+        let result = decode_content("not-valid-base64!!!", Some("base64"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid base64"));
+    }
+
+    #[test]
+    fn test_decode_content_gz_base64() {
+        use base64::Engine;
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"compressed text").unwrap();
+        let compressed = encoder.finish().unwrap();
+        let encoded = BASE64.encode(&compressed);
+
+        for enc in &["gz+base64", "gzip+base64", "gz+b64"] {
+            assert_eq!(
+                decode_content(&encoded, Some(enc)).unwrap(),
+                "compressed text",
+                "failed for encoding {enc}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_decode_content_base64_gzip_alias() {
+        use base64::Engine;
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"alt order").unwrap();
+        let compressed = encoder.finish().unwrap();
+        let encoded = BASE64.encode(&compressed);
+
+        for enc in &["b64+gzip", "base64+gzip"] {
+            assert_eq!(
+                decode_content(&encoded, Some(enc)).unwrap(),
+                "alt order",
+                "failed for encoding {enc}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_decode_content_gzip_raw() {
+        use flate2::Compression;
+        use flate2::write::GzEncoder;
+        use std::io::Write;
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(b"raw gz").unwrap();
+        let compressed = encoder.finish().unwrap();
+        assert_eq!(decompress_gzip(&compressed).unwrap(), "raw gz");
+    }
+
+    #[test]
+    fn test_decode_content_unknown_encoding() {
+        let result = decode_content("data", Some("rot13"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unknown encoding"));
+    }
+
+    #[test]
+    fn test_decompress_gzip_invalid_data() {
+        assert!(decompress_gzip(&[0x00, 0x01, 0x02]).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_write_file_basic() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("test.txt");
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: "hello world".to_string(),
+            encoding: None,
+            owner: None,
+            permissions: Some("0644".to_string()),
+            append: None,
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        assert_eq!(
+            tokio::fs::read_to_string(&path).await.unwrap(),
+            "hello world"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_file_creates_parent_dirs() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("a/b/c/deep.txt");
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: "nested".to_string(),
+            encoding: None,
+            owner: None,
+            permissions: Some("0644".to_string()),
+            append: None,
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        assert!(path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_write_file_append_mode() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("append.txt");
+        tokio::fs::write(&path, "first\n").await.unwrap();
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: "second\n".to_string(),
+            encoding: None,
+            owner: None,
+            permissions: Some("0644".to_string()),
+            append: Some(true),
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        let content = tokio::fs::read_to_string(&path).await.unwrap();
+        assert!(content.contains("first") && content.contains("second"));
+    }
+
+    #[tokio::test]
+    async fn test_write_file_append_to_nonexistent() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("new_append.txt");
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: "content".to_string(),
+            encoding: None,
+            owner: None,
+            permissions: Some("0644".to_string()),
+            append: Some(true),
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        assert_eq!(tokio::fs::read_to_string(&path).await.unwrap(), "content");
+    }
+
+    #[tokio::test]
+    async fn test_write_file_with_base64_encoding() {
+        use base64::Engine;
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("b64.txt");
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: BASE64.encode("base64 content"),
+            encoding: Some("base64".to_string()),
+            owner: None,
+            permissions: Some("0644".to_string()),
+            append: None,
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        assert_eq!(
+            tokio::fs::read_to_string(&path).await.unwrap(),
+            "base64 content"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_file_default_permissions() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("default_perms.txt");
+        let config = WriteFileConfig {
+            path: path.to_string_lossy().to_string(),
+            content: "data".to_string(),
+            encoding: None,
+            owner: None,
+            permissions: None,
+            append: None,
+            defer: None,
+        };
+        write_file(&config).await.unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let meta = std::fs::metadata(&path).unwrap();
+            assert_eq!(meta.permissions().mode() & 0o777, 0o644);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_write_files_skips_deferred() {
+        let tmp = TempDir::new().unwrap();
+        let normal_path = tmp.path().join("normal.txt");
+        let deferred_path = tmp.path().join("deferred.txt");
+        let files = vec![
+            WriteFileConfig {
+                path: normal_path.to_string_lossy().to_string(),
+                content: "normal".to_string(),
+                encoding: None,
+                owner: None,
+                permissions: Some("0644".to_string()),
+                append: None,
+                defer: None,
+            },
+            WriteFileConfig {
+                path: deferred_path.to_string_lossy().to_string(),
+                content: "deferred".to_string(),
+                encoding: None,
+                owner: None,
+                permissions: Some("0644".to_string()),
+                append: None,
+                defer: Some(true),
+            },
+        ];
+        write_files(&files).await.unwrap();
+        assert!(normal_path.exists());
+        assert!(!deferred_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_write_deferred_files_only() {
+        let tmp = TempDir::new().unwrap();
+        let normal_path = tmp.path().join("normal.txt");
+        let deferred_path = tmp.path().join("deferred.txt");
+        let files = vec![
+            WriteFileConfig {
+                path: normal_path.to_string_lossy().to_string(),
+                content: "normal".to_string(),
+                encoding: None,
+                owner: None,
+                permissions: Some("0644".to_string()),
+                append: None,
+                defer: None,
+            },
+            WriteFileConfig {
+                path: deferred_path.to_string_lossy().to_string(),
+                content: "deferred".to_string(),
+                encoding: None,
+                owner: None,
+                permissions: Some("0644".to_string()),
+                append: None,
+                defer: Some(true),
+            },
+        ];
+        write_deferred_files(&files).await.unwrap();
+        assert!(!normal_path.exists());
+        assert!(deferred_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_set_permissions_0755() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("exec.sh");
+        tokio::fs::write(&path, "#!/bin/sh").await.unwrap();
+        set_permissions(&path, "0755").await.unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o755
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_set_permissions_0600() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("secret.key");
+        tokio::fs::write(&path, "secret").await.unwrap();
+        set_permissions(&path, "0600").await.unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_set_permissions_invalid() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("file.txt");
+        tokio::fs::write(&path, "data").await.unwrap();
+        assert!(set_permissions(&path, "not_octal").await.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_set_ownership_invalid_user() {
+        let tmp = TempDir::new().unwrap();
+        let path = tmp.path().join("owned.txt");
+        tokio::fs::write(&path, "data").await.unwrap();
+        assert!(
+            set_ownership(&path, "nonexistent_user_12345")
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_write_files_empty() {
+        write_files(&[]).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_write_deferred_files_empty() {
+        write_deferred_files(&[]).await.unwrap();
+    }
+}

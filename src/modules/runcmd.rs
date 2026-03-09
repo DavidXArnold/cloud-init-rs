@@ -57,3 +57,68 @@ async fn execute_command(cmd: &RunCmd) -> Result<(), CloudInitError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_execute_runcmd_shell() {
+        let cmds = vec![RunCmd::Shell("echo hello".to_string())];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_runcmd_args() {
+        let cmds = vec![RunCmd::Args(vec!["echo".to_string(), "hello".to_string()])];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_runcmd_empty_args() {
+        let cmds = vec![RunCmd::Args(vec![])];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_runcmd_multiple() {
+        let cmds = vec![
+            RunCmd::Shell("echo first".to_string()),
+            RunCmd::Args(vec!["echo".to_string(), "second".to_string()]),
+        ];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_runcmd_failed_command_continues() {
+        let cmds = vec![
+            RunCmd::Shell("false".to_string()),
+            RunCmd::Shell("echo still_running".to_string()),
+        ];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_runcmd_with_stdout() {
+        let cmds = vec![RunCmd::Shell("echo 'output'".to_string())];
+        assert!(execute_runcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_shell_direct() {
+        assert!(
+            execute_command(&RunCmd::Shell("true".to_string()))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_args_direct() {
+        assert!(
+            execute_command(&RunCmd::Args(vec!["true".to_string()]))
+                .await
+                .is_ok()
+        );
+    }
+}
