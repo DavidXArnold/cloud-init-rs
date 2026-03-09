@@ -3,6 +3,7 @@
 //! Each module handles a specific aspect of cloud-init configuration.
 //! Modules are executed in a defined order during the config and final stages.
 
+pub mod apt;
 pub mod bootcmd;
 pub mod groups;
 pub mod hostname;

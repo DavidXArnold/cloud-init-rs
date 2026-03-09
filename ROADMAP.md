@@ -206,7 +206,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [x] `packages` - Install packages (apt/dnf/yum/zypper/apk)
 - [ ] `package_update` - Update package cache
 - [ ] `package_upgrade` - Upgrade packages
-- [ ] `apt` - APT-specific config
+- [x] `apt` - APT-specific config (proxy, sources, GPG keys, pinning)
 - [ ] `yum_repos` - YUM repositories
 - [ ] `snap` - Snap packages
 
