@@ -29,6 +29,11 @@ impl NoCloud {
         }
     }
 
+    /// Create with custom seed directories (for testing)
+    pub fn with_seed_dirs(dirs: Vec<PathBuf>) -> Self {
+        Self { seed_dirs: dirs }
+    }
+
     /// Find the seed directory containing meta-data
     async fn find_seed_dir(&self) -> Option<PathBuf> {
         for dir in &self.seed_dirs {
@@ -76,6 +81,7 @@ impl Default for NoCloud {
 }
 
 #[async_trait]
+#[allow(clippy::manual_try_fold)]
 impl Datasource for NoCloud {
     fn name(&self) -> &'static str {
         "NoCloud"
@@ -139,5 +145,187 @@ impl Datasource for NoCloud {
                 Err(_) => Ok(UserData::Script(content)),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    fn create_seed_dir(temp: &TempDir) -> PathBuf {
+        let seed = temp.path().join("nocloud");
+        std::fs::create_dir_all(&seed).unwrap();
+        seed
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_is_available() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        assert!(nc.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_not_available() {
+        let nc = NoCloud::with_seed_dirs(vec![PathBuf::from("/nonexistent/seed")]);
+        assert!(!nc.is_available().await);
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_metadata() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(
+            seed.join("meta-data"),
+            "instance-id: i-nc123\nlocal-hostname: nc-host\n",
+        )
+        .await
+        .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let metadata = nc.get_metadata().await.unwrap();
+
+        assert_eq!(metadata.cloud_name, Some("nocloud".to_string()));
+        assert_eq!(metadata.instance_id, Some("i-nc123".to_string()));
+        assert_eq!(metadata.local_hostname, Some("nc-host".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_metadata_no_seed() {
+        let nc = NoCloud::with_seed_dirs(vec![PathBuf::from("/nonexistent")]);
+        let result = nc.get_metadata().await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_cloud_config() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        tokio::fs::write(seed.join("user-data"), "#cloud-config\nhostname: nc-host\n")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+
+        match userdata {
+            UserData::CloudConfig(config) => {
+                assert_eq!(config.hostname, Some("nc-host".to_string()));
+            }
+            _ => panic!("Expected CloudConfig"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_script() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        tokio::fs::write(seed.join("user-data"), "#!/bin/bash\necho hello")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+
+        assert!(matches!(userdata, UserData::Script(_)));
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_empty() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        tokio::fs::write(seed.join("user-data"), "  \n")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+        assert!(matches!(userdata, UserData::None));
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_missing() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        // No user-data file
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+        assert!(matches!(userdata, UserData::None));
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_ambiguous() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        tokio::fs::write(seed.join("user-data"), "hostname: fallback-test")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+
+        match userdata {
+            UserData::CloudConfig(config) => {
+                assert_eq!(config.hostname, Some("fallback-test".to_string()));
+            }
+            _ => panic!("Expected CloudConfig from fallback"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_unparseable() {
+        let temp = TempDir::new().unwrap();
+        let seed = create_seed_dir(&temp);
+        tokio::fs::write(seed.join("meta-data"), "instance-id: test\n")
+            .await
+            .unwrap();
+        tokio::fs::write(seed.join("user-data"), "random text content")
+            .await
+            .unwrap();
+
+        let nc = NoCloud::with_seed_dirs(vec![seed]);
+        let userdata = nc.get_userdata().await.unwrap();
+        assert!(matches!(userdata, UserData::Script(_)));
+    }
+
+    #[tokio::test]
+    async fn test_nocloud_get_userdata_no_seed() {
+        let nc = NoCloud::with_seed_dirs(vec![PathBuf::from("/nonexistent")]);
+        let result = nc.get_userdata().await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_nocloud_name() {
+        let nc = NoCloud::new();
+        assert_eq!(nc.name(), "NoCloud");
+    }
+
+    #[test]
+    fn test_nocloud_default() {
+        let nc = NoCloud::default();
+        assert_eq!(nc.seed_dirs.len(), 2);
     }
 }

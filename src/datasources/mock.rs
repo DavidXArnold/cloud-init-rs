@@ -221,4 +221,25 @@ packages:
         let result = mock.get_userdata().await;
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn test_mock_datasource_with_userdata() {
+        let mock = MockDatasource::new().with_userdata(UserData::Script("test".into()));
+        let userdata = mock.get_userdata().await.unwrap();
+        assert!(matches!(userdata, UserData::Script(_)));
+    }
+
+    #[test]
+    fn test_mock_datasource_default_impl() {
+        let mock = MockDatasource::default();
+        assert_eq!(mock.name(), "Mock");
+    }
+
+    #[tokio::test]
+    async fn test_mock_datasource_invalid_cloud_config() {
+        let mock = MockDatasource::new().with_cloud_config("invalid: [broken yaml");
+        let result = mock.get_userdata().await;
+        // with_cloud_config stores the error in userdata_error
+        assert!(result.is_err());
+    }
 }

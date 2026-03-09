@@ -298,11 +298,107 @@ impl Datasource for OpenStack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn test_openstack_default() {
         let openstack = OpenStack::new();
         assert_eq!(openstack.name(), "OpenStack");
         assert_eq!(openstack.metadata_url, OPENSTACK_METADATA_URL);
+    }
+
+    fn create_config_drive(temp: &TempDir) -> PathBuf {
+        let cd = temp.path().join("config-drive");
+        let meta_dir = cd.join("openstack/latest");
+        std::fs::create_dir_all(&meta_dir).unwrap();
+        cd
+    }
+
+    #[tokio::test]
+    async fn test_fetch_metadata_config_drive() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+
+        let metadata_json = serde_json::json!({
+            "uuid": "cd-uuid-123",
+            "name": "cd-instance",
+            "hostname": "cd-host",
+            "availability_zone": "az-1",
+            "project_id": "proj-1"
+        });
+
+        fs::write(
+            cd.join("openstack/latest/meta_data.json"),
+            serde_json::to_string(&metadata_json).unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let result = OpenStack::fetch_metadata_config_drive(&cd).await.unwrap();
+        assert_eq!(result.uuid, "cd-uuid-123");
+        assert_eq!(result.hostname, "cd-host");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_metadata_config_drive_missing_file() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+        // Don't write the metadata file
+
+        let result = OpenStack::fetch_metadata_config_drive(&cd).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_metadata_config_drive_invalid_json() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+
+        fs::write(cd.join("openstack/latest/meta_data.json"), "not valid json")
+            .await
+            .unwrap();
+
+        let result = OpenStack::fetch_metadata_config_drive(&cd).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_userdata_config_drive() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+
+        fs::write(
+            cd.join("openstack/latest/user_data"),
+            "#cloud-config\nhostname: cd-host",
+        )
+        .await
+        .unwrap();
+
+        let result = OpenStack::fetch_userdata_config_drive(&cd).await.unwrap();
+        assert!(result.is_some());
+        assert!(result.unwrap().contains("cd-host"));
+    }
+
+    #[tokio::test]
+    async fn test_fetch_userdata_config_drive_empty() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+
+        fs::write(cd.join("openstack/latest/user_data"), "")
+            .await
+            .unwrap();
+
+        let result = OpenStack::fetch_userdata_config_drive(&cd).await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_fetch_userdata_config_drive_missing() {
+        let temp = TempDir::new().unwrap();
+        let cd = create_config_drive(&temp);
+        // Don't write user_data
+
+        let result = OpenStack::fetch_userdata_config_drive(&cd).await.unwrap();
+        assert!(result.is_none());
     }
 }
