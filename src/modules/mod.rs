@@ -9,6 +9,7 @@ pub mod hostname;
 pub mod locale;
 pub mod ntp;
 pub mod packages;
+pub mod resize_rootfs;
 pub mod runcmd;
 pub mod ssh_keys;
 pub mod timezone;
