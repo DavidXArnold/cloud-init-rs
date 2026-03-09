@@ -7,6 +7,7 @@ pub mod bootcmd;
 pub mod groups;
 pub mod hostname;
 pub mod locale;
+pub mod mounts;
 pub mod ntp;
 pub mod packages;
 pub mod runcmd;

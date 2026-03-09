@@ -1,6 +1,6 @@
 //! Tests for configuration modules
 
-use cloud_init_rs::config::{CloudConfig, RunCmd, WriteFileConfig};
+use cloud_init_rs::config::{CloudConfig, MountFieldValue, RunCmd, WriteFileConfig};
 use std::fs;
 use tempfile::TempDir;
 
@@ -364,4 +364,240 @@ packages:
     assert_eq!(config.package_upgrade, Some(true));
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
+}
+
+// ==================== Mounts Module Tests ====================
+
+/// Test parsing basic mount entries from cloud-config
+#[test]
+fn test_mounts_basic_parsing() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/sda1, /mnt/data, ext4, defaults, 0, 2]
+  - [/dev/sdb, /mnt/backup, xfs, "defaults,noatime", 0, 2]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.mounts.len(), 2);
+
+    let fields0 = config.mounts[0].fields();
+    assert_eq!(fields0[0], Some("/dev/sda1".to_string()));
+    assert_eq!(fields0[1], Some("/mnt/data".to_string()));
+    assert_eq!(fields0[2], Some("ext4".to_string()));
+    assert_eq!(fields0[3], Some("defaults".to_string()));
+    assert_eq!(fields0[4], Some("0".to_string()));
+    assert_eq!(fields0[5], Some("2".to_string()));
+}
+
+/// Test that integer fields (dump, pass) are coerced to strings
+#[test]
+fn test_mounts_integer_fields_coerced() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/sda1, /mnt, ext4, defaults, 0, 2]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let fields = config.mounts[0].fields();
+    assert_eq!(fields[4], Some("0".to_string()));
+    assert_eq!(fields[5], Some("2".to_string()));
+}
+
+/// Test parsing a swap entry
+#[test]
+fn test_mounts_swap_entry() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [swap, none, swap, sw, 0, 0]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.mounts.len(), 1);
+    let fields = config.mounts[0].fields();
+    assert_eq!(fields[0], Some("swap".to_string()));
+    assert_eq!(fields[2], Some("swap".to_string()));
+}
+
+/// Test null fields in a mount entry
+#[test]
+fn test_mounts_null_fields() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/sdc, /data, ~, ~, ~, ~]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let fields = config.mounts[0].fields();
+    assert_eq!(fields[0], Some("/dev/sdc".to_string()));
+    assert_eq!(fields[1], Some("/data".to_string()));
+    // Null fields should yield None
+    assert_eq!(fields[2], None);
+    assert_eq!(fields[3], None);
+}
+
+/// Test mount entry with only device and mount point
+#[test]
+fn test_mounts_minimal_entry() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/sda2, /opt]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let fields = config.mounts[0].fields();
+    assert_eq!(fields.len(), 2);
+    assert_eq!(fields[0], Some("/dev/sda2".to_string()));
+    assert_eq!(fields[1], Some("/opt".to_string()));
+}
+
+/// Test mount entry using a UUID device identifier
+#[test]
+fn test_mounts_uuid_device() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [UUID=1234-5678, /boot, vfat, defaults, 0, 1]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let fields = config.mounts[0].fields();
+    assert_eq!(fields[0], Some("UUID=1234-5678".to_string()));
+    assert_eq!(fields[5], Some("1".to_string()));
+}
+
+/// Test mount_default_fields parsing
+#[test]
+fn test_mount_default_fields() {
+    let yaml = r#"#cloud-config
+mount_default_fields: [~, ~, auto, defaults, '0', '2']
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.mount_default_fields.len(), 6);
+
+    let defaults: Vec<Option<String>> = config
+        .mount_default_fields
+        .iter()
+        .map(|f| f.as_ref().map(|v| v.as_str_val()))
+        .collect();
+    assert_eq!(defaults[0], None);
+    assert_eq!(defaults[1], None);
+    assert_eq!(defaults[2], Some("auto".to_string()));
+    assert_eq!(defaults[3], Some("defaults".to_string()));
+    assert_eq!(defaults[4], Some("0".to_string()));
+    assert_eq!(defaults[5], Some("2".to_string()));
+}
+
+/// Test swap config parsing - auto size
+#[test]
+fn test_swap_config_auto() {
+    let yaml = r#"#cloud-config
+swap:
+  filename: /swap.img
+  size: auto
+  maxsize: 4096
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let swap = config.swap.unwrap();
+    assert_eq!(swap.filename, Some("/swap.img".to_string()));
+    assert_eq!(swap.size, Some("auto".to_string()));
+    assert_eq!(swap.maxsize, Some(4096));
+}
+
+/// Test swap config parsing - numeric size
+#[test]
+fn test_swap_config_numeric_size() {
+    let yaml = r#"#cloud-config
+swap:
+  size: '2048'
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let swap = config.swap.unwrap();
+    assert_eq!(swap.size, Some("2048".to_string()));
+    assert_eq!(swap.filename, None); // defaults to /swap.img in configure_swap at runtime
+    assert_eq!(swap.maxsize, None);
+}
+
+/// Test MountFieldValue integer-to-string conversion
+#[test]
+fn test_mount_field_value_int_to_str() {
+    let v = MountFieldValue::Integer(0);
+    assert_eq!(v.as_str_val(), "0");
+    let v = MountFieldValue::Integer(2);
+    assert_eq!(v.as_str_val(), "2");
+    let v = MountFieldValue::Text("auto".to_string());
+    assert_eq!(v.as_str_val(), "auto");
+}
+
+/// Test that empty mounts list is accepted
+#[test]
+fn test_mounts_empty_list() {
+    let yaml = r#"#cloud-config
+hostname: test
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.mounts.is_empty());
+    assert!(config.swap.is_none());
+    assert!(config.mount_default_fields.is_empty());
+}
+
+/// Test fstab line format produced by mount entries
+#[test]
+fn test_mount_fstab_format_simulation() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/nvme0n1p1, /data, ext4, "defaults,noatime", 0, 2]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let fields = config.mounts[0].fields();
+
+    // Build the expected fstab line from the parsed fields.
+    let device = fields[0].as_deref().unwrap_or("");
+    let mp = fields[1].as_deref().unwrap_or("");
+    let fs = fields[2].as_deref().unwrap_or("auto");
+    let opts = fields[3].as_deref().unwrap_or("defaults");
+    let dump = fields[4].as_deref().unwrap_or("0");
+    let pass = fields[5].as_deref().unwrap_or("2");
+
+    let line = format!("{device}\t{mp}\t{fs}\t{opts}\t{dump}\t{pass}");
+    assert_eq!(line, "/dev/nvme0n1p1\t/data\text4\tdefaults,noatime\t0\t2");
+}
+
+/// Test creating mount point directories
+#[test]
+fn test_mount_point_directory_creation() {
+    let temp_dir = TempDir::new().unwrap();
+    let mount_point = temp_dir.path().join("mnt/data");
+
+    fs::create_dir_all(&mount_point).unwrap();
+    assert!(mount_point.exists());
+    assert!(mount_point.is_dir());
+}
+
+/// Test that a complete mounts config round-trips through YAML
+#[test]
+fn test_mounts_full_config_round_trip() {
+    let yaml = r#"#cloud-config
+mounts:
+  - [/dev/sda1, /mnt/data, ext4, defaults, 0, 2]
+  - [swap, none, swap, sw, 0, 0]
+
+mount_default_fields: [~, ~, auto, defaults, '0', '2']
+
+swap:
+  filename: /swap.img
+  size: auto
+  maxsize: 2048
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.mounts.len(), 2);
+    assert_eq!(config.mount_default_fields.len(), 6);
+
+    let swap = config.swap.unwrap();
+    assert_eq!(swap.filename, Some("/swap.img".to_string()));
+    assert_eq!(swap.maxsize, Some(2048));
 }
