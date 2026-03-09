@@ -199,7 +199,7 @@ Test coverage is critical for a system-level tool. Tests should be written along
 - [ ] `growpart` - Grow partitions
 - [ ] `resize_rootfs` - Resize root filesystem
 - [ ] `mounts` - Configure mounts
-- [ ] `disk_setup` - Partition disks
+- [x] `disk_setup` - Partition disks
 - [ ] `fs_setup` - Create filesystems
 
 ### Package Management (Medium Priority)

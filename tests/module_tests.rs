@@ -365,3 +365,176 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== Disk Setup Module Tests ====================
+
+/// Test parsing a disk_setup config with layout: true (single whole-disk partition)
+#[test]
+fn test_parse_disk_setup_layout_true() {
+    use cloud_init_rs::config::PartitionLayout;
+
+    let yaml = r#"
+#cloud-config
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+    layout: true
+    overwrite: false
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let disk_setup = config.disk_setup.unwrap();
+    assert_eq!(disk_setup.len(), 1);
+
+    let disk = disk_setup.get("/dev/sdb").unwrap();
+    assert_eq!(disk.table_type, Some("gpt".to_string()));
+    assert_eq!(disk.overwrite, Some(false));
+    assert!(matches!(disk.layout, Some(PartitionLayout::Simple(true))));
+}
+
+/// Test parsing a disk_setup config with layout: false (partition table only)
+#[test]
+fn test_parse_disk_setup_layout_false() {
+    use cloud_init_rs::config::PartitionLayout;
+
+    let yaml = r#"
+#cloud-config
+disk_setup:
+  /dev/sdc:
+    table_type: mbr
+    layout: false
+    overwrite: true
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let disk_setup = config.disk_setup.unwrap();
+    let disk = disk_setup.get("/dev/sdc").unwrap();
+    assert_eq!(disk.table_type, Some("mbr".to_string()));
+    assert_eq!(disk.overwrite, Some(true));
+    assert!(matches!(disk.layout, Some(PartitionLayout::Simple(false))));
+}
+
+/// Test parsing a disk_setup config with an explicit partition list
+#[test]
+fn test_parse_disk_setup_partition_list() {
+    use cloud_init_rs::config::{PartitionLayout, PartitionSpec};
+
+    let yaml = r#"
+#cloud-config
+disk_setup:
+  /dev/sdd:
+    table_type: gpt
+    layout:
+      - 25
+      - [25, 82]
+      - 50
+    overwrite: true
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let disk_setup = config.disk_setup.unwrap();
+    let disk = disk_setup.get("/dev/sdd").unwrap();
+
+    match disk.layout.as_ref().unwrap() {
+        PartitionLayout::Partitions(specs) => {
+            assert_eq!(specs.len(), 3);
+            assert!(matches!(specs[0], PartitionSpec::Size(25)));
+            match &specs[1] {
+                PartitionSpec::SizeAndType(parts) => {
+                    assert_eq!(parts[0], 25);
+                    assert_eq!(parts[1], 82);
+                }
+                _ => panic!("Expected SizeAndType for second partition"),
+            }
+            assert!(matches!(specs[2], PartitionSpec::Size(50)));
+        }
+        _ => panic!("Expected Partitions layout"),
+    }
+}
+
+/// Test that disk_setup is absent when not configured
+#[test]
+fn test_parse_no_disk_setup() {
+    let yaml = "#cloud-config\nhostname: test\n";
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.disk_setup.is_none());
+}
+
+/// Test parsing multiple disks in disk_setup
+#[test]
+fn test_parse_disk_setup_multiple_disks() {
+    let yaml = r#"
+#cloud-config
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+    layout: true
+  /dev/sdc:
+    table_type: mbr
+    layout: false
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let disk_setup = config.disk_setup.unwrap();
+    assert_eq!(disk_setup.len(), 2);
+    assert!(disk_setup.contains_key("/dev/sdb"));
+    assert!(disk_setup.contains_key("/dev/sdc"));
+}
+
+/// Test that table_type defaults handling and optional fields parse correctly
+#[test]
+fn test_parse_disk_setup_minimal() {
+    let yaml = r#"
+#cloud-config
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let disk_setup = config.disk_setup.unwrap();
+    let disk = disk_setup.get("/dev/sdb").unwrap();
+    assert_eq!(disk.table_type, Some("gpt".to_string()));
+    assert!(disk.layout.is_none());
+    assert!(disk.overwrite.is_none());
+}
+
+/// Test the sfdisk script builder with a whole-disk layout
+#[test]
+fn test_build_script_whole_disk_gpt() {
+    use cloud_init_rs::modules::disk_setup::build_sfdisk_script;
+    use cloud_init_rs::config::PartitionLayout;
+
+    let script = build_sfdisk_script("gpt", &Some(PartitionLayout::Simple(true)));
+    assert!(script.contains("label: gpt"));
+    assert!(script.contains("size=+, type=linux"));
+}
+
+/// Test the sfdisk script builder with an explicit partition list
+#[test]
+fn test_build_script_partition_list() {
+    use cloud_init_rs::modules::disk_setup::build_sfdisk_script;
+    use cloud_init_rs::config::{PartitionLayout, PartitionSpec};
+
+    let layout = Some(PartitionLayout::Partitions(vec![
+        PartitionSpec::Size(25),
+        PartitionSpec::SizeAndType(vec![25, 82]),
+        PartitionSpec::Size(50),
+    ]));
+    let script = build_sfdisk_script("gpt", &layout);
+
+    assert!(script.contains("label: gpt"));
+    assert!(script.contains("size=25%, type=linux"));
+    assert!(script.contains("size=25%, type=linux-swap"));
+    // Last partition always uses size=+.
+    assert!(script.contains("size=+, type=linux"));
+}
+
+/// Test normalize_table_type with valid and invalid inputs
+#[test]
+fn test_normalize_table_type() {
+    use cloud_init_rs::modules::disk_setup::normalize_table_type;
+
+    assert_eq!(normalize_table_type("gpt").unwrap(), "gpt");
+    assert_eq!(normalize_table_type("GPT").unwrap(), "gpt");
+    assert_eq!(normalize_table_type("mbr").unwrap(), "dos");
+    assert_eq!(normalize_table_type("msdos").unwrap(), "dos");
+    assert_eq!(normalize_table_type("dos").unwrap(), "dos");
+    assert!(normalize_table_type("zfs").is_err());
+}
+

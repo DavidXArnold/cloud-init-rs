@@ -9,6 +9,7 @@ pub use loader::{ConfigLoader, load_full_config, load_merged_config};
 pub use merge::{ListMergeStrategy, merge_all_configs, merge_configs, merge_yaml_strings};
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Main cloud-config structure
 ///
@@ -70,6 +71,9 @@ pub struct CloudConfig {
 
     /// NTP configuration
     pub ntp: Option<NtpConfig>,
+
+    /// Disk setup configuration
+    pub disk_setup: Option<HashMap<String, DiskConfig>>,
 
     /// Growpart configuration
     pub growpart: Option<GrowpartConfig>,
@@ -188,6 +192,48 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// Disk setup configuration for a single device
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskConfig {
+    /// Partition table type: "gpt", "mbr", "msdos", or "dos"
+    pub table_type: Option<String>,
+
+    /// Partition layout specification
+    pub layout: Option<PartitionLayout>,
+
+    /// Whether to overwrite an existing partition table (default: false)
+    pub overwrite: Option<bool>,
+}
+
+/// Partition layout for a disk
+///
+/// - `Simple(true)` → create one partition using the entire disk
+/// - `Simple(false)` → create only the partition table, no partitions
+/// - `Partitions(...)` → create the listed partitions
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PartitionLayout {
+    /// Boolean shorthand: true = whole-disk partition, false = no partitions
+    Simple(bool),
+    /// Explicit list of partition specifications
+    Partitions(Vec<PartitionSpec>),
+}
+
+/// A single partition specification within a layout list
+///
+/// Each item in a `disk_setup` layout list is either:
+/// - A bare integer (size percentage, e.g. `25` for 25 %)
+/// - A two-element list `[size_percent, type_code]`, e.g. `[25, 82]`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PartitionSpec {
+    /// Size percentage only (0–100)
+    Size(u32),
+    /// `[size_percent, type_code]` — type_code uses MBR numeric codes
+    /// (e.g. 82 = Linux swap, 83 = Linux, 0x8e = Linux LVM)
+    SizeAndType(Vec<u32>),
 }
 
 impl CloudConfig {

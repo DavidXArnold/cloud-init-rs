@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{disk_setup, groups, hostname, locale, packages, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -21,22 +21,25 @@ pub async fn run() -> Result<(), CloudInitError> {
     let config = load_cloud_config().await?;
 
     // Apply configuration modules in order
-    // 1. System configuration (hostname, timezone, locale)
+    // 1. Disk setup (partition disks before any filesystem or mount operations)
+    apply_disk_setup(&config).await?;
+
+    // 2. System configuration (hostname, timezone, locale)
     apply_system_config(&config).await?;
 
-    // 2. Groups (before users, so users can be added to groups)
+    // 3. Groups (before users, so users can be added to groups)
     apply_groups(&config).await?;
 
-    // 3. Users
+    // 4. Users
     apply_users(&config).await?;
 
-    // 4. Write files (non-deferred)
+    // 5. Write files (non-deferred)
     apply_write_files(&config, false).await?;
 
-    // 5. Package management
+    // 6. Package management
     apply_packages(&config).await?;
 
-    // 6. Write files (deferred - after packages installed)
+    // 7. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
 
     info!("Config stage: completed");
@@ -79,6 +82,25 @@ async fn load_cloud_config() -> Result<CloudConfig, CloudInitError> {
     // Return empty config if nothing found
     debug!("No cloud-config found, using defaults");
     Ok(CloudConfig::default())
+}
+
+/// Apply disk setup configuration
+async fn apply_disk_setup(config: &CloudConfig) -> Result<(), CloudInitError> {
+    let Some(ref disk_setup) = config.disk_setup else {
+        return Ok(());
+    };
+
+    if disk_setup.is_empty() {
+        return Ok(());
+    }
+
+    debug!("Setting up {} disk(s)", disk_setup.len());
+
+    if let Err(e) = disk_setup::setup_disks(disk_setup).await {
+        warn!("Disk setup encountered an error: {}", e);
+    }
+
+    Ok(())
 }
 
 /// Apply system configuration (hostname, timezone, locale)

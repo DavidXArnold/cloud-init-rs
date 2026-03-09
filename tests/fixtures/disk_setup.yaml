@@ -1,0 +1,20 @@
+#cloud-config
+# Example disk_setup configuration
+#
+# Sets up two additional disks:
+#   /dev/sdb: GPT table, single whole-disk Linux partition
+#   /dev/sdc: MBR table, three partitions (25 % Linux, 25 % swap, 50 % Linux)
+
+disk_setup:
+  /dev/sdb:
+    table_type: gpt
+    layout: true
+    overwrite: false
+
+  /dev/sdc:
+    table_type: mbr
+    layout:
+      - 25
+      - [25, 82]
+      - 50
+    overwrite: true
