@@ -4,6 +4,8 @@
 
 # cloud-init-rs
 
+[![codecov](https://codecov.io/gh/DavidXArnold/cloud-init-rs/branch/main/graph/badge.svg)](https://codecov.io/gh/DavidXArnold/cloud-init-rs)
+
 A safe Rust implementation of [cloud-init](https://github.com/canonical/cloud-init) focused on fast boot times and memory safety.
 
 ## Goals

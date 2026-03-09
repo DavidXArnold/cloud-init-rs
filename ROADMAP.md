@@ -37,7 +37,7 @@ This roadmap outlines the path to achieving 80%+ compatibility with cloud-init.
 - [x] `coverage.yml` - Code coverage reporting
   - [x] Use cargo-llvm-cov
   - [x] Upload to Codecov
-  - [ ] Coverage badge in README (after repo created)
+  - [x] Coverage badge in README (after repo created)
   - [ ] Fail PR if coverage drops below threshold (configure in Codecov)
 
 ### Release Workflow
