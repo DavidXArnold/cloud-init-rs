@@ -6,6 +6,7 @@
 pub mod bootcmd;
 pub mod groups;
 pub mod hostname;
+pub mod keyboard;
 pub mod locale;
 pub mod ntp;
 pub mod packages;

@@ -71,6 +71,9 @@ pub struct CloudConfig {
     /// NTP configuration
     pub ntp: Option<NtpConfig>,
 
+    /// Keyboard layout configuration
+    pub keyboard: Option<KeyboardConfig>,
+
     /// Growpart configuration
     pub growpart: Option<GrowpartConfig>,
 
@@ -188,6 +191,19 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// Keyboard layout configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KeyboardConfig {
+    /// Keyboard layout (e.g. "us", "de", "fr")
+    pub layout: String,
+    /// Keyboard model (e.g. "pc105")
+    pub model: Option<String>,
+    /// Keyboard variant (e.g. "dvorak")
+    pub variant: Option<String>,
+    /// Keyboard options (e.g. "ctrl:nocaps")
+    pub options: Option<String>,
 }
 
 impl CloudConfig {
