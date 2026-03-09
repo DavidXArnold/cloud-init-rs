@@ -365,3 +365,80 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== Package Update Module Tests ====================
+
+/// Test that package_update: true is parsed from cloud-config
+#[test]
+fn test_package_update_true_parsed() {
+    let yaml = r#"#cloud-config
+package_update: true
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.package_update, Some(true));
+}
+
+/// Test that package_update: false is parsed from cloud-config
+#[test]
+fn test_package_update_false_parsed() {
+    let yaml = r#"#cloud-config
+package_update: false
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.package_update, Some(false));
+}
+
+/// Test that omitting package_update leaves it as None
+#[test]
+fn test_package_update_absent_is_none() {
+    let yaml = r#"#cloud-config
+hostname: myhost
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.package_update, None);
+}
+
+/// Test that the package_update module name is correct
+#[test]
+fn test_package_update_module_name() {
+    use cloud_init_rs::modules::Module;
+    use cloud_init_rs::modules::package_update::PackageUpdate;
+    let m = PackageUpdate;
+    assert_eq!(m.name(), "package_update");
+}
+
+/// Test that the package_update module frequency is PerInstance
+#[test]
+fn test_package_update_module_frequency() {
+    use cloud_init_rs::modules::package_update::PackageUpdate;
+    use cloud_init_rs::modules::{Frequency, Module};
+    let m = PackageUpdate;
+    assert!(matches!(m.frequency(), Frequency::PerInstance));
+}
+
+/// Test that cache_refresh_command returns correct values for each package manager
+#[test]
+fn test_package_update_commands() {
+    use cloud_init_rs::modules::package_update::cache_refresh_command;
+    use cloud_init_rs::modules::packages::PackageManager;
+
+    let (cmd, args) = cache_refresh_command(PackageManager::Apt);
+    assert_eq!(cmd, "apt-get");
+    assert_eq!(args, vec!["update"]);
+
+    let (cmd, args) = cache_refresh_command(PackageManager::Dnf);
+    assert_eq!(cmd, "dnf");
+    assert_eq!(args, vec!["makecache"]);
+
+    let (cmd, args) = cache_refresh_command(PackageManager::Yum);
+    assert_eq!(cmd, "yum");
+    assert_eq!(args, vec!["makecache"]);
+
+    let (cmd, args) = cache_refresh_command(PackageManager::Zypper);
+    assert_eq!(cmd, "zypper");
+    assert_eq!(args, vec!["--non-interactive", "refresh"]);
+
+    let (cmd, args) = cache_refresh_command(PackageManager::Apk);
+    assert_eq!(cmd, "apk");
+    assert_eq!(args, vec!["update"]);
+}

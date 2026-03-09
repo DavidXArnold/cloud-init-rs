@@ -47,11 +47,11 @@ impl PackageManager {
         }
     }
 
-    fn update_command(&self) -> (&str, Vec<&str>) {
+    pub(crate) fn update_command(&self) -> (&'static str, Vec<&'static str>) {
         match self {
             Self::Apt => ("apt-get", vec!["update"]),
-            Self::Dnf => ("dnf", vec!["check-update"]),
-            Self::Yum => ("yum", vec!["check-update"]),
+            Self::Dnf => ("dnf", vec!["makecache"]),
+            Self::Yum => ("yum", vec!["makecache"]),
             Self::Zypper => ("zypper", vec!["--non-interactive", "refresh"]),
             Self::Apk => ("apk", vec!["update"]),
         }
@@ -96,8 +96,7 @@ pub async fn update_package_cache() -> Result<(), CloudInitError> {
         .await
         .map_err(|e| CloudInitError::Command(e.to_string()))?;
 
-    // Note: yum/dnf check-update returns 100 if updates available, which is not an error
-    if !output.status.success() && output.status.code() != Some(100) {
+    if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         warn!("Package cache update had issues: {}", stderr);
         // Don't fail - update issues are often non-fatal

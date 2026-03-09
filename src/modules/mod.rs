@@ -8,6 +8,7 @@ pub mod groups;
 pub mod hostname;
 pub mod locale;
 pub mod ntp;
+pub mod package_update;
 pub mod packages;
 pub mod runcmd;
 pub mod ssh_keys;
