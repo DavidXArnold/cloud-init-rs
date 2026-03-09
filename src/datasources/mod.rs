@@ -60,3 +60,16 @@ pub async fn detect_datasource() -> Result<Box<dyn Datasource>, CloudInitError> 
 
     Err(CloudInitError::NoDatasource)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::datasources::mock::MockDatasource;
+
+    #[tokio::test]
+    async fn test_get_vendordata_default() {
+        let mock = MockDatasource::new();
+        let result = mock.get_vendordata().await.unwrap();
+        assert!(result.is_none());
+    }
+}

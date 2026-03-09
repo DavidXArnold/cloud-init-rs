@@ -293,8 +293,8 @@ write_files:
 
         let merged = merge_yaml_values(&base, &overlay, ListMergeStrategy::Append);
         let map = merged.as_mapping().unwrap();
-        assert!(map.contains_key(&Value::String("a".into())));
-        assert!(map.contains_key(&Value::String("b".into())));
+        assert!(map.contains_key(Value::String("a".into())));
+        assert!(map.contains_key(Value::String("b".into())));
     }
 
     #[test]

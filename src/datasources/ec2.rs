@@ -38,6 +38,20 @@ impl Ec2 {
         }
     }
 
+    /// Create with a custom base URL (for testing)
+    pub fn with_base_url(base_url: &str) -> Self {
+        let client = Client::builder()
+            .timeout(Duration::from_secs(5))
+            .connect_timeout(Duration::from_secs(2))
+            .build()
+            .expect("Failed to create HTTP client");
+
+        Self {
+            client,
+            base_url: base_url.to_string(),
+        }
+    }
+
     /// Get IMDSv2 token for authenticated requests
     async fn get_imdsv2_token(&self) -> Option<String> {
         let url = format!("{}/latest/api/token", self.base_url);
