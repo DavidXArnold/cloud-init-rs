@@ -442,8 +442,8 @@ The following phases extend beyond 80% to achieve full cloud-init compatibility.
 - [ ] `ubuntu_drivers` - Ubuntu drivers
 
 ### RHEL/CentOS Specific
-- [ ] `rh_subscription` - Red Hat subscription
-- [ ] `yum_add_repo` - Full YUM repo management
+- [x] `rh_subscription` - Red Hat subscription
+- [x] `yum_add_repo` - Full YUM repo management
 
 ### SUSE Specific
 - [ ] `zypper_add_repo` - Zypper repositories

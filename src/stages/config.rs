@@ -8,7 +8,9 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{
+    groups, hostname, locale, packages, rh_subscription, timezone, users, write_files, yum_add_repo,
+};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -33,10 +35,16 @@ pub async fn run() -> Result<(), CloudInitError> {
     // 4. Write files (non-deferred)
     apply_write_files(&config, false).await?;
 
-    // 5. Package management
+    // 5. Red Hat subscription (before packages, so repos are available)
+    apply_rh_subscription(&config).await?;
+
+    // 6. YUM repositories (before package installation)
+    apply_yum_repos(&config).await?;
+
+    // 7. Package management
     apply_packages(&config).await?;
 
-    // 6. Write files (deferred - after packages installed)
+    // 8. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
 
     info!("Config stage: completed");
@@ -167,6 +175,30 @@ async fn apply_write_files(config: &CloudConfig, deferred: bool) -> Result<(), C
         }
     }
 
+    Ok(())
+}
+
+/// Apply Red Hat subscription configuration
+async fn apply_rh_subscription(config: &CloudConfig) -> Result<(), CloudInitError> {
+    if let Some(ref rh_sub) = config.rh_subscription {
+        debug!("Configuring Red Hat subscription");
+        if let Err(e) = rh_subscription::configure_rh_subscription(rh_sub).await {
+            warn!("Failed to configure rh_subscription: {}", e);
+        }
+    }
+    Ok(())
+}
+
+/// Apply YUM repository configuration
+async fn apply_yum_repos(config: &CloudConfig) -> Result<(), CloudInitError> {
+    if config.yum_repos.is_empty() {
+        return Ok(());
+    }
+
+    debug!("Adding {} YUM repo(s)", config.yum_repos.len());
+    if let Err(e) = yum_add_repo::add_yum_repos(&config.yum_repos).await {
+        warn!("Failed to add YUM repos: {}", e);
+    }
     Ok(())
 }
 
