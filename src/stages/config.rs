@@ -8,7 +8,10 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{
+    groups, hostname, locale, packages, timezone, users, write_files, zypper_add_repo,
+    zypper_configure,
+};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -38,6 +41,9 @@ pub async fn run() -> Result<(), CloudInitError> {
 
     // 6. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
+
+    // 7. Zypper repository and configuration management (SUSE/openSUSE)
+    apply_zypper(&config).await?;
 
     info!("Config stage: completed");
     Ok(())
@@ -193,6 +199,31 @@ async fn apply_packages(config: &CloudConfig) -> Result<(), CloudInitError> {
     if !config.packages.is_empty() {
         info!("Installing {} packages", config.packages.len());
         packages::install_packages(&config.packages).await?;
+    }
+
+    Ok(())
+}
+
+/// Apply zypper repository and configuration management
+async fn apply_zypper(config: &CloudConfig) -> Result<(), CloudInitError> {
+    let Some(ref zypper) = config.zypper else {
+        return Ok(());
+    };
+
+    // Apply zypper global configuration first so new repos inherit the settings
+    if !zypper.config.is_empty() {
+        debug!("Applying zypper configuration settings");
+        if let Err(e) = zypper_configure::configure_zypper(&zypper.config).await {
+            warn!("Failed to apply zypper configuration: {}", e);
+        }
+    }
+
+    // Add repositories
+    if !zypper.repos.is_empty() {
+        debug!("Adding {} zypper repositories", zypper.repos.len());
+        if let Err(e) = zypper_add_repo::add_repos(&zypper.repos).await {
+            warn!("Failed to add zypper repositories: {}", e);
+        }
     }
 
     Ok(())

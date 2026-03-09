@@ -365,3 +365,100 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== Zypper Module Tests ====================
+
+/// Test zypper repos config from fixture file
+#[test]
+fn test_zypper_fixture_file() {
+    let yaml = include_str!("fixtures/zypper.yaml");
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let zypper = config.zypper.unwrap();
+    assert_eq!(zypper.repos.len(), 3);
+
+    let oss = &zypper.repos[0];
+    assert_eq!(oss.id, "opensuse-oss");
+    assert_eq!(oss.name, Some("OpenSUSE OSS".to_string()));
+    assert!(oss.baseurl.as_deref().unwrap().contains("opensuse.org"));
+    assert_eq!(oss.enabled, Some(true));
+    assert_eq!(oss.autorefresh, Some(true));
+    assert_eq!(oss.gpgcheck, Some(true));
+
+    let company = &zypper.repos[2];
+    assert_eq!(company.id, "mycompany-repo");
+    assert_eq!(company.autorefresh, Some(false));
+    assert_eq!(company.priority, Some(50));
+    assert!(company.gpgkey.is_some());
+
+    assert!(zypper.config.contains_key("gpgcheck"));
+    assert!(zypper.config.contains_key("solver.onlyRequires"));
+}
+
+/// Test zypper repos with default (absent) optional fields
+#[test]
+fn test_zypper_repo_defaults() {
+    let yaml = r#"#cloud-config
+zypper:
+  repos:
+    - id: minimal-repo
+      baseurl: https://example.com/repo/
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let zypper = config.zypper.unwrap();
+    let repo = &zypper.repos[0];
+    assert_eq!(repo.id, "minimal-repo");
+    assert!(repo.name.is_none());
+    assert!(repo.enabled.is_none());
+    assert!(repo.autorefresh.is_none());
+    assert!(repo.gpgcheck.is_none());
+    assert!(repo.gpgkey.is_none());
+    assert!(repo.priority.is_none());
+}
+
+/// Test that zypper config settings are parsed as expected
+#[test]
+fn test_zypper_config_settings_types() {
+    let yaml = r#"#cloud-config
+zypper:
+  config:
+    gpgcheck: "1"
+    solver.onlyRequires: "true"
+    reposdir: /etc/zypp/repos.d
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let zypper = config.zypper.unwrap();
+    assert_eq!(zypper.config.len(), 3);
+    assert!(zypper.config.contains_key("gpgcheck"));
+    assert!(zypper.config.contains_key("solver.onlyRequires"));
+    assert!(zypper.config.contains_key("reposdir"));
+}
+
+/// Test that absent zypper section is None
+#[test]
+fn test_zypper_absent_when_not_configured() {
+    let yaml = "#cloud-config\nhostname: myhost\n";
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.zypper.is_none());
+}
+
+/// Test zypper repos list with multiple entries
+#[test]
+fn test_zypper_multiple_repos() {
+    let yaml = r#"#cloud-config
+zypper:
+  repos:
+    - id: repo-a
+      baseurl: https://a.example.com/
+    - id: repo-b
+      baseurl: https://b.example.com/
+      enabled: false
+    - id: repo-c
+      baseurl: https://c.example.com/
+      priority: 10
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let zypper = config.zypper.unwrap();
+    assert_eq!(zypper.repos.len(), 3);
+    assert_eq!(zypper.repos[1].enabled, Some(false));
+    assert_eq!(zypper.repos[2].priority, Some(10));
+}

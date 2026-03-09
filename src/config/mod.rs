@@ -9,6 +9,7 @@ pub use loader::{ConfigLoader, load_full_config, load_merged_config};
 pub use merge::{ListMergeStrategy, merge_all_configs, merge_configs, merge_yaml_strings};
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Main cloud-config structure
 ///
@@ -85,6 +86,9 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// Zypper repository and configuration management (SUSE/openSUSE)
+    pub zypper: Option<ZypperConfig>,
 }
 
 /// User configuration
@@ -190,8 +194,46 @@ pub struct NtpConfig {
     pub pools: Vec<String>,
 }
 
+/// Zypper repository and configuration management (SUSE/openSUSE)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ZypperConfig {
+    /// Repositories to add
+    pub repos: Vec<ZypperRepoConfig>,
+
+    /// Zypper global configuration key-value pairs written to `/etc/zypp/zypp.conf`
+    pub config: HashMap<String, serde_yaml::Value>,
+}
+
+/// A single zypper repository definition
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZypperRepoConfig {
+    /// Repository alias / identifier (required)
+    pub id: String,
+
+    /// Human-readable repository name (defaults to `id` when absent)
+    pub name: Option<String>,
+
+    /// Base URL of the repository
+    pub baseurl: Option<String>,
+
+    /// Whether the repository is enabled (default: true)
+    pub enabled: Option<bool>,
+
+    /// Whether to auto-refresh the repository metadata (default: true)
+    pub autorefresh: Option<bool>,
+
+    /// Whether to check GPG signatures (default: true)
+    pub gpgcheck: Option<bool>,
+
+    /// URL to the GPG key for this repository
+    pub gpgkey: Option<String>,
+
+    /// Repository priority (lower numbers are higher priority)
+    pub priority: Option<u32>,
+}
+
 impl CloudConfig {
-    /// Parse cloud-config from YAML string
     pub fn from_yaml(yaml: &str) -> Result<Self, serde_yaml::Error> {
         // Strip #cloud-config header if present
         let yaml = yaml
@@ -673,5 +715,121 @@ runcmd:
         assert_eq!(config.packages.len(), 2);
         assert_eq!(config.write_files.len(), 1);
         assert_eq!(config.runcmd.len(), 1);
+    }
+
+    // ==================== Zypper Configuration Tests ====================
+
+    #[test]
+    fn test_parse_zypper_repos() {
+        let yaml = r#"
+#cloud-config
+zypper:
+  repos:
+    - id: opensuse-oss
+      name: OpenSUSE OSS
+      baseurl: http://download.opensuse.org/distribution/leap/15.4/repo/oss/
+      enabled: true
+      autorefresh: true
+      gpgcheck: true
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let zypper = config.zypper.unwrap();
+        assert_eq!(zypper.repos.len(), 1);
+        let repo = &zypper.repos[0];
+        assert_eq!(repo.id, "opensuse-oss");
+        assert_eq!(repo.name, Some("OpenSUSE OSS".to_string()));
+        assert_eq!(
+            repo.baseurl,
+            Some("http://download.opensuse.org/distribution/leap/15.4/repo/oss/".to_string())
+        );
+        assert_eq!(repo.enabled, Some(true));
+        assert_eq!(repo.autorefresh, Some(true));
+        assert_eq!(repo.gpgcheck, Some(true));
+    }
+
+    #[test]
+    fn test_parse_zypper_repos_minimal() {
+        let yaml = r#"
+#cloud-config
+zypper:
+  repos:
+    - id: my-repo
+      baseurl: https://example.com/repo/
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let zypper = config.zypper.unwrap();
+        assert_eq!(zypper.repos.len(), 1);
+        let repo = &zypper.repos[0];
+        assert_eq!(repo.id, "my-repo");
+        assert_eq!(repo.baseurl, Some("https://example.com/repo/".to_string()));
+        assert!(repo.name.is_none());
+        assert!(repo.enabled.is_none());
+    }
+
+    #[test]
+    fn test_parse_zypper_repos_with_priority_and_gpgkey() {
+        let yaml = r#"
+#cloud-config
+zypper:
+  repos:
+    - id: high-priority-repo
+      baseurl: https://example.com/repo/
+      priority: 50
+      gpgkey: https://example.com/repo/key.gpg
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let zypper = config.zypper.unwrap();
+        let repo = &zypper.repos[0];
+        assert_eq!(repo.priority, Some(50));
+        assert_eq!(
+            repo.gpgkey,
+            Some("https://example.com/repo/key.gpg".to_string())
+        );
+    }
+
+    #[test]
+    fn test_parse_zypper_config_settings() {
+        let yaml = r#"
+#cloud-config
+zypper:
+  config:
+    gpgcheck: "1"
+    solver.onlyRequires: "true"
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let zypper = config.zypper.unwrap();
+        assert!(zypper.config.contains_key("gpgcheck"));
+        assert!(zypper.config.contains_key("solver.onlyRequires"));
+    }
+
+    #[test]
+    fn test_parse_zypper_combined() {
+        let yaml = r#"
+#cloud-config
+zypper:
+  repos:
+    - id: repo-one
+      baseurl: https://example.com/one/
+    - id: repo-two
+      baseurl: https://example.com/two/
+      enabled: false
+  config:
+    solver.onlyRequires: "true"
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let zypper = config.zypper.unwrap();
+        assert_eq!(zypper.repos.len(), 2);
+        assert_eq!(zypper.repos[1].enabled, Some(false));
+        assert!(zypper.config.contains_key("solver.onlyRequires"));
+    }
+
+    #[test]
+    fn test_parse_zypper_empty() {
+        let yaml = r#"
+#cloud-config
+hostname: test
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config.zypper.is_none());
     }
 }

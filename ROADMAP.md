@@ -446,8 +446,8 @@ The following phases extend beyond 80% to achieve full cloud-init compatibility.
 - [ ] `yum_add_repo` - Full YUM repo management
 
 ### SUSE Specific
-- [ ] `zypper_add_repo` - Zypper repositories
-- [ ] `zypper_configure` - Zypper configuration
+- [x] `zypper_add_repo` - Zypper repositories
+- [x] `zypper_configure` - Zypper configuration
 
 ### FreeBSD Specific
 - [ ] FreeBSD network configuration

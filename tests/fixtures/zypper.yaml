@@ -1,0 +1,28 @@
+#cloud-config
+# Example SUSE/openSUSE zypper configuration
+
+zypper:
+  repos:
+    - id: opensuse-oss
+      name: OpenSUSE OSS
+      baseurl: http://download.opensuse.org/distribution/leap/15.4/repo/oss/
+      enabled: true
+      autorefresh: true
+      gpgcheck: true
+    - id: opensuse-update
+      name: OpenSUSE Updates
+      baseurl: http://download.opensuse.org/update/leap/15.4/oss/
+      enabled: true
+      autorefresh: true
+      gpgcheck: true
+    - id: mycompany-repo
+      name: My Company Repository
+      baseurl: https://repo.mycompany.com/openSUSE/
+      enabled: true
+      autorefresh: false
+      gpgcheck: true
+      gpgkey: https://repo.mycompany.com/key.gpg
+      priority: 50
+  config:
+    gpgcheck: "1"
+    solver.onlyRequires: "true"

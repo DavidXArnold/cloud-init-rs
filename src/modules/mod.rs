@@ -14,6 +14,8 @@ pub mod ssh_keys;
 pub mod timezone;
 pub mod users;
 pub mod write_files;
+pub mod zypper_add_repo;
+pub mod zypper_configure;
 
 /// Module execution frequency
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
