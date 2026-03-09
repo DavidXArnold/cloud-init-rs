@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{groups, hostname, locale, packages, snap, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -36,7 +36,10 @@ pub async fn run() -> Result<(), CloudInitError> {
     // 5. Package management
     apply_packages(&config).await?;
 
-    // 6. Write files (deferred - after packages installed)
+    // 6. Snap package management
+    apply_snap(&config).await?;
+
+    // 7. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
 
     info!("Config stage: completed");
@@ -193,6 +196,32 @@ async fn apply_packages(config: &CloudConfig) -> Result<(), CloudInitError> {
     if !config.packages.is_empty() {
         info!("Installing {} packages", config.packages.len());
         packages::install_packages(&config.packages).await?;
+    }
+
+    Ok(())
+}
+
+/// Apply snap configuration
+async fn apply_snap(config: &CloudConfig) -> Result<(), CloudInitError> {
+    let Some(snap_config) = config.snap.as_ref() else {
+        return Ok(());
+    };
+
+    if snap_config.assertions.is_empty() && snap_config.commands.is_empty() {
+        return Ok(());
+    }
+
+    info!(
+        "Applying snap configuration ({} assertion(s), {} command(s))",
+        snap_config.assertions.len(),
+        snap_config.commands.len()
+    );
+
+    if let Err(e) = snap::apply_snap(snap_config).await {
+        warn!(
+            "Failed to apply snap configuration: {}; continuing with remaining configuration",
+            e
+        );
     }
 
     Ok(())

@@ -1,6 +1,6 @@
 //! Tests for configuration modules
 
-use cloud_init_rs::config::{CloudConfig, RunCmd, WriteFileConfig};
+use cloud_init_rs::config::{CloudConfig, RunCmd, SnapConfig, WriteFileConfig};
 use std::fs;
 use tempfile::TempDir;
 
@@ -364,4 +364,157 @@ packages:
     assert_eq!(config.package_upgrade, Some(true));
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
+}
+
+// ==================== Snap Module Tests ====================
+
+/// Test snap config parsing with shell commands
+#[test]
+fn test_snap_config_shell_commands() {
+    let yaml = r#"#cloud-config
+snap:
+  commands:
+    - snap install docker
+    - snap install lxd --channel=latest/stable
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let snap = config.snap.unwrap();
+    assert_eq!(snap.commands.len(), 2);
+    assert!(matches!(&snap.commands[0], RunCmd::Shell(s) if s == "snap install docker"));
+    assert!(matches!(&snap.commands[1], RunCmd::Shell(s) if s.contains("lxd")));
+}
+
+/// Test snap config parsing with argument arrays (classic/devmode)
+#[test]
+fn test_snap_config_array_commands() {
+    let yaml = r#"#cloud-config
+snap:
+  commands:
+    - ["snap", "install", "--classic", "code"]
+    - ["snap", "install", "--devmode", "my-snap"]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let snap = config.snap.unwrap();
+    assert_eq!(snap.commands.len(), 2);
+
+    match &snap.commands[0] {
+        RunCmd::Args(args) => {
+            assert_eq!(args[0], "snap");
+            assert_eq!(args[1], "install");
+            assert_eq!(args[2], "--classic");
+            assert_eq!(args[3], "code");
+        }
+        _ => panic!("Expected Args variant for classic install"),
+    }
+
+    match &snap.commands[1] {
+        RunCmd::Args(args) => {
+            assert_eq!(args[2], "--devmode");
+            assert_eq!(args[3], "my-snap");
+        }
+        _ => panic!("Expected Args variant for devmode install"),
+    }
+}
+
+/// Test snap assertions parsing
+#[test]
+fn test_snap_assertions_parsing() {
+    let yaml = r#"#cloud-config
+snap:
+  assertions:
+    - |
+      type: account-key
+      authority-id: canonical
+      revision: 2
+    - |
+      type: snap-declaration
+      authority-id: canonical
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let snap = config.snap.unwrap();
+    assert_eq!(snap.assertions.len(), 2);
+    assert!(snap.assertions[0].contains("type: account-key"));
+    assert!(snap.assertions[1].contains("type: snap-declaration"));
+}
+
+/// Test snap config is absent when not specified
+#[test]
+fn test_snap_config_absent() {
+    let yaml = r#"#cloud-config
+packages:
+  - nginx
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.snap.is_none());
+}
+
+/// Test snap config with both assertions and commands
+#[test]
+fn test_snap_full_config() {
+    let yaml = r#"#cloud-config
+snap:
+  assertions:
+    - |
+      type: account-key
+      authority-id: canonical
+  commands:
+    - snap install hello-world
+    - ["snap", "install", "--classic", "code"]
+    - ["snap", "install", "--devmode", "test-snap"]
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let snap = config.snap.unwrap();
+    assert_eq!(snap.assertions.len(), 1);
+    assert_eq!(snap.commands.len(), 3);
+
+    // First command: shell string
+    assert!(matches!(&snap.commands[0], RunCmd::Shell(_)));
+    // Second command: classic confinement
+    assert!(matches!(&snap.commands[1], RunCmd::Args(_)));
+    // Third command: devmode confinement
+    assert!(matches!(&snap.commands[2], RunCmd::Args(_)));
+}
+
+/// Test SnapConfig struct can be constructed directly
+#[test]
+fn test_snap_config_struct() {
+    let snap = SnapConfig {
+        commands: vec![
+            RunCmd::Shell("snap install docker".to_string()),
+            RunCmd::Args(vec![
+                "snap".to_string(),
+                "install".to_string(),
+                "--classic".to_string(),
+                "code".to_string(),
+            ]),
+        ],
+        assertions: vec!["type: account-key\n".to_string()],
+    };
+
+    assert_eq!(snap.commands.len(), 2);
+    assert_eq!(snap.assertions.len(), 1);
+}
+
+/// Test snap config mixed with other cloud-config directives
+#[test]
+fn test_snap_with_other_config() {
+    let yaml = r#"#cloud-config
+hostname: my-server
+packages:
+  - git
+snap:
+  commands:
+    - snap install docker
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.hostname, Some("my-server".to_string()));
+    assert!(config.packages.contains(&"git".to_string()));
+    let snap = config.snap.unwrap();
+    assert_eq!(snap.commands.len(), 1);
 }
