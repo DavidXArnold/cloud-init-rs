@@ -178,3 +178,121 @@ pub async fn install_packages(packages: &[String]) -> Result<(), CloudInitError>
 pub async fn install_package(package: &str) -> Result<(), CloudInitError> {
     install_packages(&[package.to_string()]).await
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_apt_install_command() {
+        let (c, a) = PackageManager::Apt.install_command();
+        assert_eq!(c, "apt-get");
+        assert_eq!(a, vec!["install", "-y"]);
+    }
+    #[test]
+    fn test_dnf_install_command() {
+        let (c, a) = PackageManager::Dnf.install_command();
+        assert_eq!(c, "dnf");
+        assert_eq!(a, vec!["install", "-y"]);
+    }
+    #[test]
+    fn test_yum_install_command() {
+        let (c, a) = PackageManager::Yum.install_command();
+        assert_eq!(c, "yum");
+        assert_eq!(a, vec!["install", "-y"]);
+    }
+    #[test]
+    fn test_zypper_install_command() {
+        let (c, a) = PackageManager::Zypper.install_command();
+        assert_eq!(c, "zypper");
+        assert_eq!(a, vec!["--non-interactive", "install"]);
+    }
+    #[test]
+    fn test_apk_install_command() {
+        let (c, a) = PackageManager::Apk.install_command();
+        assert_eq!(c, "apk");
+        assert_eq!(a, vec!["add", "--no-cache"]);
+    }
+
+    #[test]
+    fn test_apt_update_command() {
+        let (c, a) = PackageManager::Apt.update_command();
+        assert_eq!(c, "apt-get");
+        assert_eq!(a, vec!["update"]);
+    }
+    #[test]
+    fn test_dnf_update_command() {
+        let (c, a) = PackageManager::Dnf.update_command();
+        assert_eq!(c, "dnf");
+        assert_eq!(a, vec!["check-update"]);
+    }
+    #[test]
+    fn test_yum_update_command() {
+        let (c, a) = PackageManager::Yum.update_command();
+        assert_eq!(c, "yum");
+        assert_eq!(a, vec!["check-update"]);
+    }
+    #[test]
+    fn test_zypper_update_command() {
+        let (c, a) = PackageManager::Zypper.update_command();
+        assert_eq!(c, "zypper");
+        assert_eq!(a, vec!["--non-interactive", "refresh"]);
+    }
+    #[test]
+    fn test_apk_update_command() {
+        let (c, a) = PackageManager::Apk.update_command();
+        assert_eq!(c, "apk");
+        assert_eq!(a, vec!["update"]);
+    }
+
+    #[test]
+    fn test_apt_upgrade_command() {
+        let (c, a) = PackageManager::Apt.upgrade_command();
+        assert_eq!(c, "apt-get");
+        assert_eq!(a, vec!["upgrade", "-y"]);
+    }
+    #[test]
+    fn test_dnf_upgrade_command() {
+        let (c, a) = PackageManager::Dnf.upgrade_command();
+        assert_eq!(c, "dnf");
+        assert_eq!(a, vec!["upgrade", "-y"]);
+    }
+    #[test]
+    fn test_yum_upgrade_command() {
+        let (c, a) = PackageManager::Yum.upgrade_command();
+        assert_eq!(c, "yum");
+        assert_eq!(a, vec!["update", "-y"]);
+    }
+    #[test]
+    fn test_zypper_upgrade_command() {
+        let (c, a) = PackageManager::Zypper.upgrade_command();
+        assert_eq!(c, "zypper");
+        assert_eq!(a, vec!["--non-interactive", "update"]);
+    }
+    #[test]
+    fn test_apk_upgrade_command() {
+        let (c, a) = PackageManager::Apk.upgrade_command();
+        assert_eq!(c, "apk");
+        assert_eq!(a, vec!["upgrade"]);
+    }
+
+    #[test]
+    fn test_package_manager_debug() {
+        assert_eq!(format!("{:?}", PackageManager::Apt), "Apt");
+        assert_ne!(PackageManager::Apt, PackageManager::Dnf);
+    }
+
+    #[tokio::test]
+    async fn test_command_exists_true() {
+        assert!(command_exists("echo").await);
+    }
+    #[tokio::test]
+    async fn test_command_exists_false() {
+        assert!(!command_exists("nonexistent_command_xyz_12345").await);
+    }
+
+    #[tokio::test]
+    async fn test_install_packages_empty() {
+        assert!(install_packages(&[]).await.is_ok());
+    }
+}

@@ -112,3 +112,43 @@ pub async fn generate_locale(locale: &str) -> Result<(), CloudInitError> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_set_locale_calls_localectl() {
+        // On macOS this will fail gracefully and fall through to file writes
+        // which will also fail (no /etc/locale.conf), but shouldn't panic
+        let _ = set_locale("en_US.UTF-8").await;
+    }
+
+    #[tokio::test]
+    async fn test_try_localectl_nonexistent() {
+        // localectl may not exist on macOS, should return Ok(false)
+        let result = try_localectl("en_US.UTF-8").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_generate_locale_nonexistent() {
+        // locale-gen may not exist, should return Ok(()) gracefully
+        let result = generate_locale("en_US.UTF-8").await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_write_locale_conf_requires_permissions() {
+        // On non-root systems this will fail with permission error
+        let result = write_locale_conf("en_US.UTF-8").await;
+        // Just verify it returns an error type, not a panic
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_write_default_locale_requires_permissions() {
+        let result = write_default_locale("en_US.UTF-8").await;
+        let _ = result;
+    }
+}

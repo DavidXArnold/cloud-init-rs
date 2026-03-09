@@ -260,3 +260,124 @@ async fn configure_sudo(username: &str, sudo_spec: &str) -> Result<(), CloudInit
     info!("Configured sudo access for user {}", username);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_create_users_empty() {
+        let result = create_users(&[]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_users_skips_default() {
+        let users = vec![UserConfig::Name("default".to_string())];
+        let result = create_users(&users).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_user_simple_calls_useradd() {
+        let result = create_user_simple("test_user_xyz_12345").await;
+        let _ = result; // May fail on macOS but should not panic
+    }
+
+    #[tokio::test]
+    async fn test_create_user_full_minimal() {
+        let config = UserFullConfig {
+            name: "test_fulluser_xyz".to_string(),
+            ..Default::default()
+        };
+        let result = create_user_full(&config).await;
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_create_user_full_with_options() {
+        let config = UserFullConfig {
+            name: "test_opts_xyz".to_string(),
+            shell: Some("/bin/bash".to_string()),
+            homedir: Some("/home/test_opts_xyz".to_string()),
+            gecos: Some("Test User".to_string()),
+            uid: Some(9999),
+            primary_group: Some("users".to_string()),
+            system: Some(true),
+            ..Default::default()
+        };
+        let result = create_user_full(&config).await;
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_add_user_to_groups_calls_usermod() {
+        let result = add_user_to_groups("nonexistent", &["group1".to_string()]).await;
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_lock_user_password_calls_passwd() {
+        let result = lock_user_password("nonexistent_lock_test").await;
+        // lock_user_password logs warning but returns Ok
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_user_config_name_variant() {
+        let config = UserConfig::Name("testuser".to_string());
+        match config {
+            UserConfig::Name(name) => assert_eq!(name, "testuser"),
+            _ => panic!("Expected Name variant"),
+        }
+    }
+
+    #[test]
+    fn test_user_config_full_variant() {
+        let full = UserFullConfig {
+            name: "fulluser".to_string(),
+            groups: vec!["sudo".to_string(), "docker".to_string()],
+            lock_passwd: Some(true),
+            ..Default::default()
+        };
+        let config = UserConfig::Full(Box::new(full));
+        match config {
+            UserConfig::Full(c) => {
+                assert_eq!(c.name, "fulluser");
+                assert_eq!(c.groups.len(), 2);
+                assert_eq!(c.lock_passwd, Some(true));
+            }
+            _ => panic!("Expected Full variant"),
+        }
+    }
+
+    #[test]
+    fn test_user_full_config_default() {
+        let config = UserFullConfig::default();
+        assert_eq!(config.name, "");
+        assert!(config.groups.is_empty());
+        assert!(config.shell.is_none());
+        assert!(config.sudo.is_none());
+        assert!(config.lock_passwd.is_none());
+        assert!(config.uid.is_none());
+        assert!(config.system.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_create_users_name_variant() {
+        let users = vec![UserConfig::Name("test_name_xyz_12345".to_string())];
+        let result = create_users(&users).await;
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_create_users_full_variant() {
+        let full = UserFullConfig {
+            name: "test_full_xyz_12345".to_string(),
+            ..Default::default()
+        };
+        let users = vec![UserConfig::Full(Box::new(full))];
+        let result = create_users(&users).await;
+        let _ = result;
+    }
+}

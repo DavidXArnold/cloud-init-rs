@@ -54,6 +54,23 @@ pub async fn configure_ntp(config: &NtpConfig) -> Result<(), CloudInitError> {
     Ok(())
 }
 
+/// Build chrony configuration content (pure function for testability)
+fn build_chrony_content(config: &NtpConfig) -> String {
+    let mut content = String::new();
+    content.push_str("# Configured by cloud-init-rs\n");
+    for server in &config.servers {
+        content.push_str(&format!("server {server} iburst\n"));
+    }
+    for pool in &config.pools {
+        content.push_str(&format!("pool {pool} iburst\n"));
+    }
+    content.push_str("\n# Common settings\n");
+    content.push_str("driftfile /var/lib/chrony/drift\n");
+    content.push_str("makestep 1.0 3\n");
+    content.push_str("rtcsync\n");
+    content
+}
+
 /// Configure chrony (preferred on RHEL/Fedora/newer Ubuntu)
 async fn try_configure_chrony(config: &NtpConfig) -> Result<bool, CloudInitError> {
     let chrony_conf = Path::new("/etc/chrony.conf");
@@ -69,40 +86,32 @@ async fn try_configure_chrony(config: &NtpConfig) -> Result<bool, CloudInitError
     };
 
     info!("Configuring chrony");
-
-    // Build configuration
-    let mut content = String::new();
-    content.push_str("# Configured by cloud-init-rs\n");
-
-    for server in &config.servers {
-        content.push_str(&format!("server {} iburst\n", server));
-    }
-
-    for pool in &config.pools {
-        content.push_str(&format!("pool {} iburst\n", pool));
-    }
-
-    // Add common chrony options
-    content.push_str("\n# Common settings\n");
-    content.push_str("driftfile /var/lib/chrony/drift\n");
-    content.push_str("makestep 1.0 3\n");
-    content.push_str("rtcsync\n");
+    let content = build_chrony_content(config);
 
     fs::write(conf_path, &content)
         .await
         .map_err(CloudInitError::Io)?;
 
-    // Restart chrony
     restart_service("chronyd").await?;
-
     Ok(true)
+}
+
+/// Build timesyncd configuration content (pure function for testability)
+fn build_timesyncd_content(config: &NtpConfig) -> String {
+    let servers: Vec<&str> = config.servers.iter().map(|s| s.as_str()).collect();
+    let pools: Vec<&str> = config.pools.iter().map(|s| s.as_str()).collect();
+    let ntp_line = if !servers.is_empty() {
+        servers.join(" ")
+    } else {
+        pools.join(" ")
+    };
+    format!("# Configured by cloud-init-rs\n[Time]\nNTP={ntp_line}\n")
 }
 
 /// Configure systemd-timesyncd (default on many systemd systems)
 async fn try_configure_timesyncd(config: &NtpConfig) -> Result<bool, CloudInitError> {
     let timesyncd_conf = Path::new("/etc/systemd/timesyncd.conf");
 
-    // Check if systemd-timesyncd is available
     let status = tokio::process::Command::new("systemctl")
         .args(["is-enabled", "systemd-timesyncd"])
         .output()
@@ -114,27 +123,32 @@ async fn try_configure_timesyncd(config: &NtpConfig) -> Result<bool, CloudInitEr
     }
 
     info!("Configuring systemd-timesyncd");
-
-    // Build configuration
-    let servers: Vec<&str> = config.servers.iter().map(|s| s.as_str()).collect();
-    let pools: Vec<&str> = config.pools.iter().map(|s| s.as_str()).collect();
-
-    let ntp_line = if !servers.is_empty() {
-        servers.join(" ")
-    } else {
-        pools.join(" ")
-    };
-
-    let content = format!("# Configured by cloud-init-rs\n[Time]\nNTP={}\n", ntp_line);
+    let content = build_timesyncd_content(config);
 
     fs::write(timesyncd_conf, &content)
         .await
         .map_err(CloudInitError::Io)?;
 
-    // Restart timesyncd
     restart_service("systemd-timesyncd").await?;
-
     Ok(true)
+}
+
+/// Build ntpd configuration content (pure function for testability)
+fn build_ntpd_content(config: &NtpConfig) -> String {
+    let mut content = String::new();
+    content.push_str("# Configured by cloud-init-rs\n");
+    content.push_str("driftfile /var/lib/ntp/drift\n\n");
+    for server in &config.servers {
+        content.push_str(&format!("server {server} iburst\n"));
+    }
+    for pool in &config.pools {
+        content.push_str(&format!("pool {pool} iburst\n"));
+    }
+    content.push_str("\n# Access control\n");
+    content.push_str("restrict default kod nomodify notrap nopeer noquery\n");
+    content.push_str("restrict 127.0.0.1\n");
+    content.push_str("restrict ::1\n");
+    content
 }
 
 /// Configure ntpd (legacy systems)
@@ -147,33 +161,13 @@ async fn try_configure_ntpd(config: &NtpConfig) -> Result<bool, CloudInitError> 
     }
 
     info!("Configuring ntpd");
-
-    // Build configuration
-    let mut content = String::new();
-    content.push_str("# Configured by cloud-init-rs\n");
-    content.push_str("driftfile /var/lib/ntp/drift\n\n");
-
-    for server in &config.servers {
-        content.push_str(&format!("server {} iburst\n", server));
-    }
-
-    for pool in &config.pools {
-        content.push_str(&format!("pool {} iburst\n", pool));
-    }
-
-    // Restrict access
-    content.push_str("\n# Access control\n");
-    content.push_str("restrict default kod nomodify notrap nopeer noquery\n");
-    content.push_str("restrict 127.0.0.1\n");
-    content.push_str("restrict ::1\n");
+    let content = build_ntpd_content(config);
 
     fs::write(ntp_conf, &content)
         .await
         .map_err(CloudInitError::Io)?;
 
-    // Restart ntpd
     restart_service("ntpd").await?;
-
     Ok(true)
 }
 
@@ -203,5 +197,146 @@ async fn restart_service(service: &str) -> Result<(), CloudInitError> {
             warn!("Could not restart {}: {}", service, e);
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ntp_config_default() {
+        let config = NtpConfig::default();
+        assert!(config.enabled);
+        assert!(config.servers.is_empty());
+        assert_eq!(config.pools, vec!["pool.ntp.org".to_string()]);
+    }
+
+    #[test]
+    fn test_build_chrony_content_defaults() {
+        let config = NtpConfig::default();
+        let content = build_chrony_content(&config);
+        assert!(content.contains("# Configured by cloud-init-rs"));
+        assert!(content.contains("pool pool.ntp.org iburst"));
+        assert!(content.contains("driftfile /var/lib/chrony/drift"));
+        assert!(content.contains("makestep 1.0 3"));
+        assert!(content.contains("rtcsync"));
+    }
+
+    #[test]
+    fn test_build_chrony_content_custom_servers() {
+        let config = NtpConfig {
+            servers: vec![
+                "time1.google.com".to_string(),
+                "time2.google.com".to_string(),
+            ],
+            pools: vec![],
+            enabled: true,
+        };
+        let content = build_chrony_content(&config);
+        assert!(content.contains("server time1.google.com iburst"));
+        assert!(content.contains("server time2.google.com iburst"));
+        assert!(!content.contains("pool"));
+    }
+
+    #[test]
+    fn test_build_timesyncd_content_with_pools() {
+        let config = NtpConfig::default();
+        let content = build_timesyncd_content(&config);
+        assert!(content.contains("[Time]"));
+        assert!(content.contains("NTP=pool.ntp.org"));
+    }
+
+    #[test]
+    fn test_build_timesyncd_content_servers_preferred() {
+        let config = NtpConfig {
+            servers: vec![
+                "ntp1.example.com".to_string(),
+                "ntp2.example.com".to_string(),
+            ],
+            pools: vec!["pool.ntp.org".to_string()],
+            enabled: true,
+        };
+        let content = build_timesyncd_content(&config);
+        assert!(content.contains("NTP=ntp1.example.com ntp2.example.com"));
+        assert!(!content.contains("pool.ntp.org"));
+    }
+
+    #[test]
+    fn test_build_ntpd_content_defaults() {
+        let config = NtpConfig::default();
+        let content = build_ntpd_content(&config);
+        assert!(content.contains("driftfile /var/lib/ntp/drift"));
+        assert!(content.contains("pool pool.ntp.org iburst"));
+        assert!(content.contains("restrict default kod nomodify notrap nopeer noquery"));
+        assert!(content.contains("restrict ::1"));
+    }
+
+    #[test]
+    fn test_build_ntpd_content_custom() {
+        let config = NtpConfig {
+            servers: vec!["time.nist.gov".to_string()],
+            pools: vec!["pool.ntp.org".to_string()],
+            enabled: true,
+        };
+        let content = build_ntpd_content(&config);
+        assert!(content.contains("server time.nist.gov iburst"));
+        assert!(content.contains("pool pool.ntp.org iburst"));
+    }
+
+    #[test]
+    fn test_build_chrony_content_empty_config() {
+        let config = NtpConfig {
+            servers: vec![],
+            pools: vec![],
+            enabled: true,
+        };
+        let content = build_chrony_content(&config);
+        assert!(content.contains("# Configured by cloud-init-rs"));
+        assert!(!content.contains("server "));
+        assert!(!content.contains("pool "));
+    }
+
+    #[test]
+    fn test_build_timesyncd_content_empty() {
+        let config = NtpConfig {
+            servers: vec![],
+            pools: vec![],
+            enabled: true,
+        };
+        let content = build_timesyncd_content(&config);
+        assert!(content.contains("NTP=\n"));
+    }
+
+    #[test]
+    fn test_build_ntpd_content_empty() {
+        let config = NtpConfig {
+            servers: vec![],
+            pools: vec![],
+            enabled: true,
+        };
+        let content = build_ntpd_content(&config);
+        assert!(content.contains("# Configured by cloud-init-rs"));
+        assert!(content.contains("restrict"));
+    }
+
+    #[tokio::test]
+    async fn test_configure_ntp_disabled() {
+        let config = NtpConfig {
+            servers: vec![],
+            pools: vec![],
+            enabled: false,
+        };
+        let result = configure_ntp(&config).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_configure_ntp_no_services() {
+        let config = NtpConfig::default();
+        // On macOS, /etc/ntp.conf may exist and fail with permission error.
+        // On Linux CI without NTP services, this returns Ok(()).
+        // Either outcome is acceptable.
+        let _ = configure_ntp(&config).await;
     }
 }

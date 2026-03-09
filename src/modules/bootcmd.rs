@@ -66,3 +66,71 @@ async fn execute_command(cmd: &RunCmd) -> Result<(), CloudInitError> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_empty() {
+        assert!(execute_bootcmd(&[]).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_shell_command() {
+        let cmds = vec![RunCmd::Shell("echo hello".to_string())];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_args_command() {
+        let cmds = vec![RunCmd::Args(vec!["echo".to_string(), "hello".to_string()])];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_empty_args() {
+        let cmds = vec![RunCmd::Args(vec![])];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_multiple_commands() {
+        let cmds = vec![
+            RunCmd::Shell("echo first".to_string()),
+            RunCmd::Args(vec!["echo".to_string(), "second".to_string()]),
+            RunCmd::Shell("echo third".to_string()),
+        ];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_failed_command_nonfatal() {
+        let cmds = vec![RunCmd::Shell("false".to_string())];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_bootcmd_with_stdout() {
+        let cmds = vec![RunCmd::Shell("echo 'output line'".to_string())];
+        assert!(execute_bootcmd(&cmds).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_shell() {
+        assert!(
+            execute_command(&RunCmd::Shell("true".to_string()))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_args() {
+        assert!(
+            execute_command(&RunCmd::Args(vec!["true".to_string()]))
+                .await
+                .is_ok()
+        );
+    }
+}

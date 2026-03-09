@@ -90,73 +90,135 @@ pub async fn update_etc_hosts(hostname: &str, fqdn: &str) -> Result<(), CloudIni
     );
 
     let hosts_path = "/etc/hosts";
-
-    // Read existing hosts file
     let existing = fs::read_to_string(hosts_path)
         .await
         .unwrap_or_else(|_| String::new());
 
-    // Build new hosts file
-    let mut new_lines: Vec<String> = Vec::new();
-    let mut found_127_0_0_1 = false;
-    let mut found_127_0_1_1 = false;
+    let content = build_hosts_content(&existing, hostname, fqdn);
 
-    for line in existing.lines() {
-        let trimmed = line.trim();
-
-        // Skip empty lines and comments for now, we'll add them back
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            new_lines.push(line.to_string());
-            continue;
-        }
-
-        // Parse the line to get IP and hostnames
-        let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        if parts.is_empty() {
-            new_lines.push(line.to_string());
-            continue;
-        }
-
-        let ip = parts[0];
-
-        if ip == "127.0.0.1" {
-            // Keep localhost entries, add our hostname
-            found_127_0_0_1 = true;
-            new_lines.push(format!("127.0.0.1 localhost {}", hostname));
-        } else if ip == "127.0.1.1" {
-            // This is traditionally used for the FQDN
-            found_127_0_1_1 = true;
-            if fqdn != hostname {
-                new_lines.push(format!("127.0.1.1 {} {}", fqdn, hostname));
-            } else {
-                new_lines.push(format!("127.0.1.1 {}", hostname));
-            }
-        } else {
-            // Keep other entries as-is
-            new_lines.push(line.to_string());
-        }
-    }
-
-    // Add missing entries
-    if !found_127_0_0_1 {
-        new_lines.insert(0, format!("127.0.0.1 localhost {}", hostname));
-    }
-    if !found_127_0_1_1 && fqdn != hostname {
-        // Find position after 127.0.0.1 line
-        let pos = new_lines
-            .iter()
-            .position(|l| l.starts_with("127.0.0.1"))
-            .map(|p| p + 1)
-            .unwrap_or(0);
-        new_lines.insert(pos, format!("127.0.1.1 {} {}", fqdn, hostname));
-    }
-
-    // Write back
-    let content = new_lines.join("\n") + "\n";
     fs::write(hosts_path, &content)
         .await
         .map_err(CloudInitError::Io)?;
 
     info!("Updated /etc/hosts");
     Ok(())
+}
+
+/// Build the content for /etc/hosts (pure function for testability)
+fn build_hosts_content(existing: &str, hostname: &str, fqdn: &str) -> String {
+    let mut new_lines: Vec<String> = Vec::new();
+    let mut found_127_0_0_1 = false;
+    let mut found_127_0_1_1 = false;
+
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            new_lines.push(line.to_string());
+            continue;
+        }
+        let parts: Vec<&str> = trimmed.split_whitespace().collect();
+        if parts.is_empty() {
+            new_lines.push(line.to_string());
+            continue;
+        }
+        let ip = parts[0];
+        if ip == "127.0.0.1" {
+            found_127_0_0_1 = true;
+            new_lines.push(format!("127.0.0.1 localhost {hostname}"));
+        } else if ip == "127.0.1.1" {
+            found_127_0_1_1 = true;
+            if fqdn != hostname {
+                new_lines.push(format!("127.0.1.1 {fqdn} {hostname}"));
+            } else {
+                new_lines.push(format!("127.0.1.1 {hostname}"));
+            }
+        } else {
+            new_lines.push(line.to_string());
+        }
+    }
+    if !found_127_0_0_1 {
+        new_lines.insert(0, format!("127.0.0.1 localhost {hostname}"));
+    }
+    if !found_127_0_1_1 && fqdn != hostname {
+        let pos = new_lines
+            .iter()
+            .position(|l| l.starts_with("127.0.0.1"))
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        new_lines.insert(pos, format!("127.0.1.1 {fqdn} {hostname}"));
+    }
+    new_lines.join("\n") + "\n"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_hosts_empty_existing() {
+        let result = build_hosts_content("", "myhost", "myhost.example.com");
+        assert!(result.contains("127.0.0.1 localhost myhost"));
+        assert!(result.contains("127.0.1.1 myhost.example.com myhost"));
+    }
+
+    #[test]
+    fn test_build_hosts_existing_127001() {
+        let existing = "127.0.0.1 localhost oldhost\n";
+        let result = build_hosts_content(existing, "newhost", "newhost.example.com");
+        assert!(result.contains("127.0.0.1 localhost newhost"));
+        assert!(!result.contains("oldhost"));
+        assert!(result.contains("127.0.1.1 newhost.example.com newhost"));
+    }
+
+    #[test]
+    fn test_build_hosts_existing_both_entries() {
+        let existing = "127.0.0.1 localhost\n127.0.1.1 old.example.com old\n";
+        let result = build_hosts_content(existing, "new", "new.example.com");
+        assert!(result.contains("127.0.0.1 localhost new"));
+        assert!(result.contains("127.0.1.1 new.example.com new"));
+        assert!(!result.contains("old"));
+    }
+
+    #[test]
+    fn test_build_hosts_fqdn_same_as_hostname() {
+        let existing = "127.0.0.1 localhost\n";
+        let result = build_hosts_content(existing, "simple", "simple");
+        assert!(result.contains("127.0.0.1 localhost simple"));
+        assert!(!result.contains("127.0.1.1"));
+    }
+
+    #[test]
+    fn test_build_hosts_fqdn_same_with_existing_127011() {
+        let existing = "127.0.0.1 localhost\n127.0.1.1 old.example.com old\n";
+        let result = build_hosts_content(existing, "simple", "simple");
+        assert!(result.contains("127.0.1.1 simple"));
+        assert!(!result.contains("old"));
+    }
+
+    #[test]
+    fn test_build_hosts_preserves_comments() {
+        let existing = "# This is a comment\n127.0.0.1 localhost\n";
+        let result = build_hosts_content(existing, "host", "host.example.com");
+        assert!(result.contains("# This is a comment"));
+    }
+
+    #[test]
+    fn test_build_hosts_preserves_other_entries() {
+        let existing = "127.0.0.1 localhost\n192.168.1.1 gateway\n";
+        let result = build_hosts_content(existing, "host", "host.example.com");
+        assert!(result.contains("192.168.1.1 gateway"));
+    }
+
+    #[test]
+    fn test_build_hosts_inserts_127011_after_127001() {
+        let result = build_hosts_content("", "host", "host.example.com");
+        let lines: Vec<&str> = result.lines().collect();
+        assert!(lines[0].starts_with("127.0.0.1"));
+        assert!(lines[1].starts_with("127.0.1.1"));
+    }
+
+    #[tokio::test]
+    async fn test_set_hostname_fqdn_without_manage_hosts() {
+        let _ = set_hostname_fqdn("test-fqdn-host", Some("test-fqdn-host.local"), false).await;
+    }
 }

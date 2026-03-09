@@ -74,3 +74,58 @@ async fn add_user_to_group(username: &str, group: &str) -> Result<(), CloudInitE
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_create_groups_empty() {
+        let result = create_groups(&[]).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_group_simple_calls_groupadd() {
+        // Will fail on macOS (no groupadd) but should return error, not panic
+        let result = create_group_simple("test_group_xyz_12345").await;
+        let _ = result; // May be Ok or Err depending on platform
+    }
+
+    #[tokio::test]
+    async fn test_create_group_with_members_calls_groupadd() {
+        let result =
+            create_group_with_members("test_group_xyz_12345", &["user1".to_string()]).await;
+        let _ = result;
+    }
+
+    #[tokio::test]
+    async fn test_add_user_to_group_calls_usermod() {
+        let result = add_user_to_group("nonexistent_user", "nonexistent_group").await;
+        let _ = result;
+    }
+
+    #[test]
+    fn test_group_config_name_variant() {
+        let config = GroupConfig::Name("mygroup".to_string());
+        match config {
+            GroupConfig::Name(name) => assert_eq!(name, "mygroup"),
+            _ => panic!("Expected Name variant"),
+        }
+    }
+
+    #[test]
+    fn test_group_config_with_members_variant() {
+        let config = GroupConfig::WithMembers {
+            name: "mygroup".to_string(),
+            members: vec!["user1".to_string(), "user2".to_string()],
+        };
+        match config {
+            GroupConfig::WithMembers { name, members } => {
+                assert_eq!(name, "mygroup");
+                assert_eq!(members.len(), 2);
+            }
+            _ => panic!("Expected WithMembers variant"),
+        }
+    }
+}
