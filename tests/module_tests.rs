@@ -365,3 +365,213 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== Filesystem Setup Module Tests ====================
+
+/// Test basic fs_setup config parsing
+#[test]
+fn test_fs_setup_basic_ext4() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.fs_setup.len(), 1);
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.filesystem, "ext4");
+    assert_eq!(entry.device, "/dev/sda1");
+    assert!(entry.label.is_none());
+    assert!(entry.overwrite.is_none());
+}
+
+/// Test fs_setup with label
+#[test]
+fn test_fs_setup_with_label() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+    label: mydata
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.label, Some("mydata".to_string()));
+}
+
+/// Test fs_setup overwrite flag
+#[test]
+fn test_fs_setup_overwrite_true() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: xfs
+    device: /dev/sdb1
+    overwrite: true
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.overwrite, Some(true));
+}
+
+/// Test fs_setup overwrite defaults to None (treated as false)
+#[test]
+fn test_fs_setup_overwrite_default() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert!(entry.overwrite.is_none());
+}
+
+/// Test fs_setup with swap filesystem
+#[test]
+fn test_fs_setup_swap() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: swap
+    device: /dev/sdb1
+    label: swap0
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.filesystem, "swap");
+    assert_eq!(entry.label, Some("swap0".to_string()));
+}
+
+/// Test fs_setup with btrfs filesystem
+#[test]
+fn test_fs_setup_btrfs() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: btrfs
+    device: /dev/sdc
+    label: data
+    overwrite: false
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.filesystem, "btrfs");
+    assert_eq!(entry.overwrite, Some(false));
+}
+
+/// Test fs_setup with numeric partition specification
+#[test]
+fn test_fs_setup_partition_number() {
+    use cloud_init_rs::config::FsPartition;
+
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sdb
+    partition: 1
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert!(matches!(entry.partition, Some(FsPartition::Number(1))));
+}
+
+/// Test fs_setup with "auto" partition specification
+#[test]
+fn test_fs_setup_partition_auto() {
+    use cloud_init_rs::config::FsPartition;
+
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sdb
+    partition: auto
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert!(matches!(
+        &entry.partition,
+        Some(FsPartition::Named(s)) if s == "auto"
+    ));
+}
+
+/// Test fs_setup with "none" partition specification
+#[test]
+fn test_fs_setup_partition_none() {
+    use cloud_init_rs::config::FsPartition;
+
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: xfs
+    device: /dev/sdb1
+    partition: none
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert!(matches!(
+        &entry.partition,
+        Some(FsPartition::Named(s)) if s == "none"
+    ));
+}
+
+/// Test fs_setup with replace_fs field
+#[test]
+fn test_fs_setup_replace_fs() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+    replace_fs: ext3
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.replace_fs, Some("ext3".to_string()));
+}
+
+/// Test fs_setup with extra_opts
+#[test]
+fn test_fs_setup_extra_opts() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+    extra_opts:
+      - "-E"
+      - "lazy_itable_init=0"
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let entry = &config.fs_setup[0];
+    assert_eq!(entry.extra_opts.len(), 2);
+    assert_eq!(entry.extra_opts[0], "-E");
+    assert_eq!(entry.extra_opts[1], "lazy_itable_init=0");
+}
+
+/// Test multiple fs_setup entries
+#[test]
+fn test_fs_setup_multiple_entries() {
+    let yaml = r#"#cloud-config
+fs_setup:
+  - filesystem: ext4
+    device: /dev/sda1
+    label: root-extra
+  - filesystem: swap
+    device: /dev/sda2
+    label: swap0
+  - filesystem: xfs
+    device: /dev/sdb
+    partition: 1
+    label: data
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.fs_setup.len(), 3);
+    assert_eq!(config.fs_setup[0].filesystem, "ext4");
+    assert_eq!(config.fs_setup[1].filesystem, "swap");
+    assert_eq!(config.fs_setup[2].filesystem, "xfs");
+}
+
+/// Test that an empty fs_setup list is accepted
+#[test]
+fn test_fs_setup_empty_list() {
+    let yaml = r#"#cloud-config
+hostname: test
+"#;
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.fs_setup.is_empty());
+}

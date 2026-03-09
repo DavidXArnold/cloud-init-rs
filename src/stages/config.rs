@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{fs_setup, groups, hostname, locale, packages, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -30,13 +30,16 @@ pub async fn run() -> Result<(), CloudInitError> {
     // 3. Users
     apply_users(&config).await?;
 
-    // 4. Write files (non-deferred)
+    // 4. Filesystem setup (before write_files so partitions are ready)
+    apply_fs_setup(&config).await?;
+
+    // 5. Write files (non-deferred)
     apply_write_files(&config, false).await?;
 
-    // 5. Package management
+    // 6. Package management
     apply_packages(&config).await?;
 
-    // 6. Write files (deferred - after packages installed)
+    // 7. Write files (deferred - after packages installed)
     apply_write_files(&config, true).await?;
 
     info!("Config stage: completed");
@@ -108,6 +111,21 @@ async fn apply_system_config(config: &CloudConfig) -> Result<(), CloudInitError>
         if let Err(e) = locale::set_locale(loc).await {
             warn!("Failed to set locale: {}", e);
         }
+    }
+
+    Ok(())
+}
+
+/// Apply filesystem setup configuration
+async fn apply_fs_setup(config: &CloudConfig) -> Result<(), CloudInitError> {
+    if config.fs_setup.is_empty() {
+        return Ok(());
+    }
+
+    debug!("Setting up {} filesystem(s)", config.fs_setup.len());
+
+    if let Err(e) = fs_setup::setup_filesystems(&config.fs_setup).await {
+        warn!("Failed to set up filesystems: {}", e);
     }
 
     Ok(())

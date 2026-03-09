@@ -71,6 +71,10 @@ pub struct CloudConfig {
     /// NTP configuration
     pub ntp: Option<NtpConfig>,
 
+    /// Filesystem setup configuration
+    #[serde(default)]
+    pub fs_setup: Vec<FsSetupConfig>,
+
     /// Growpart configuration
     pub growpart: Option<GrowpartConfig>,
 
@@ -174,6 +178,42 @@ pub struct PhoneHomeConfig {
     pub url: String,
     pub post: Option<Vec<String>>,
     pub tries: Option<u32>,
+}
+
+/// Filesystem setup configuration (fs_setup directive)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FsSetupConfig {
+    /// Filesystem type (ext4, xfs, btrfs, swap)
+    pub filesystem: String,
+
+    /// Device path (e.g. /dev/sda1, /dev/sdb)
+    pub device: String,
+
+    /// Optional filesystem label
+    pub label: Option<String>,
+
+    /// Partition specification: "auto", "none", or a partition number
+    pub partition: Option<FsPartition>,
+
+    /// Overwrite existing filesystem (default: false)
+    pub overwrite: Option<bool>,
+
+    /// Replace only if the existing filesystem matches this type
+    pub replace_fs: Option<String>,
+
+    /// Extra options passed verbatim to the mkfs command
+    #[serde(default)]
+    pub extra_opts: Vec<String>,
+}
+
+/// Partition specification for `fs_setup`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum FsPartition {
+    /// Named partition: "auto" or "none"
+    Named(String),
+    /// Numeric partition number (e.g. 1)
+    Number(u32),
 }
 
 /// NTP configuration
