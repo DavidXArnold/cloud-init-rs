@@ -8,7 +8,7 @@
 
 use crate::CloudInitError;
 use crate::config::CloudConfig;
-use crate::modules::{groups, hostname, locale, packages, timezone, users, write_files};
+use crate::modules::{groups, hostname, keyboard, locale, packages, timezone, users, write_files};
 use crate::state::InstanceState;
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -107,6 +107,14 @@ async fn apply_system_config(config: &CloudConfig) -> Result<(), CloudInitError>
         debug!("Setting locale to: {}", loc);
         if let Err(e) = locale::set_locale(loc).await {
             warn!("Failed to set locale: {}", e);
+        }
+    }
+
+    // Set keyboard layout
+    if let Some(ref kbd) = config.keyboard {
+        debug!("Setting keyboard layout to: {}", kbd.layout);
+        if let Err(e) = keyboard::set_keyboard(kbd).await {
+            warn!("Failed to set keyboard layout: {}", e);
         }
     }
 

@@ -1,6 +1,6 @@
 //! Tests for configuration modules
 
-use cloud_init_rs::config::{CloudConfig, RunCmd, WriteFileConfig};
+use cloud_init_rs::config::{CloudConfig, KeyboardConfig, RunCmd, WriteFileConfig};
 use std::fs;
 use tempfile::TempDir;
 
@@ -364,4 +364,109 @@ packages:
     assert_eq!(config.package_upgrade, Some(true));
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
+}
+
+// ==================== Keyboard Module Tests ====================
+
+/// Test keyboard config parsing - layout only
+#[test]
+fn test_keyboard_config_layout_only() {
+    let yaml = r#"#cloud-config
+keyboard:
+  layout: us
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let kbd = config.keyboard.unwrap();
+    assert_eq!(kbd.layout, "us");
+    assert!(kbd.model.is_none());
+    assert!(kbd.variant.is_none());
+    assert!(kbd.options.is_none());
+}
+
+/// Test keyboard config parsing - full configuration
+#[test]
+fn test_keyboard_config_full() {
+    let yaml = r#"#cloud-config
+keyboard:
+  layout: de
+  model: pc105
+  variant: nodeadkeys
+  options: ctrl:nocaps
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let kbd = config.keyboard.unwrap();
+    assert_eq!(kbd.layout, "de");
+    assert_eq!(kbd.model, Some("pc105".to_string()));
+    assert_eq!(kbd.variant, Some("nodeadkeys".to_string()));
+    assert_eq!(kbd.options, Some("ctrl:nocaps".to_string()));
+}
+
+/// Test keyboard config absent when not specified
+#[test]
+fn test_keyboard_config_absent() {
+    let yaml = r#"#cloud-config
+hostname: myhost
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.keyboard.is_none());
+}
+
+/// Test KeyboardConfig struct creation and field access
+#[test]
+fn test_keyboard_config_struct() {
+    let kbd = KeyboardConfig {
+        layout: "fr".to_string(),
+        model: Some("pc104".to_string()),
+        variant: Some("latin9".to_string()),
+        options: None,
+    };
+
+    assert_eq!(kbd.layout, "fr");
+    assert_eq!(kbd.model.as_deref(), Some("pc104"));
+    assert_eq!(kbd.variant.as_deref(), Some("latin9"));
+    assert!(kbd.options.is_none());
+}
+
+/// Test /etc/default/keyboard file format
+#[test]
+fn test_default_keyboard_file_format() {
+    let temp_dir = TempDir::new().unwrap();
+    let keyboard_file = temp_dir.path().join("keyboard");
+
+    let layout = "us";
+    let model = "pc105";
+    let variant = "";
+    let options = "";
+
+    let content = format!(
+        "XKBMODEL=\"{}\"\nXKBLAYOUT=\"{}\"\nXKBVARIANT=\"{}\"\nXKBOPTIONS=\"{}\"\nBACKSPACE=\"guess\"\n",
+        model, layout, variant, options
+    );
+    fs::write(&keyboard_file, &content).unwrap();
+
+    let read_content = fs::read_to_string(&keyboard_file).unwrap();
+    assert!(read_content.contains("XKBLAYOUT=\"us\""));
+    assert!(read_content.contains("XKBMODEL=\"pc105\""));
+    assert!(read_content.contains("XKBVARIANT=\"\""));
+    assert!(read_content.contains("XKBOPTIONS=\"\""));
+    assert!(read_content.contains("BACKSPACE=\"guess\""));
+}
+
+/// Test keyboard config with layout variants
+#[test]
+fn test_keyboard_config_variants() {
+    let layouts = ["us", "de", "fr", "gb", "es", "it", "ru", "jp"];
+
+    for layout in &layouts {
+        let yaml = format!(
+            "#cloud-config\nkeyboard:\n  layout: {}\n",
+            layout
+        );
+        let config = CloudConfig::from_yaml(&yaml).unwrap();
+        let kbd = config.keyboard.unwrap();
+        assert_eq!(&kbd.layout, layout);
+    }
 }
