@@ -235,6 +235,12 @@ fn test_parse_all_fixture_files() {
     let runcmd = include_str!("fixtures/runcmd.yaml");
     let config = CloudConfig::from_yaml(runcmd).unwrap();
     assert_eq!(config.runcmd.len(), 4);
+    let rc = config.runcmd_config.as_ref().unwrap();
+    assert_eq!(rc.shell, Some("/bin/bash".to_string()));
+    assert_eq!(
+        rc.error_handling,
+        Some(cloud_init_rs::config::ErrorHandlingMode::Continue)
+    );
 
     // Full fixture (comprehensive test)
     let full = include_str!("fixtures/full.yaml");

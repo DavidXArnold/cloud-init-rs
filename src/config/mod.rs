@@ -45,6 +45,9 @@ pub struct CloudConfig {
     #[serde(default)]
     pub runcmd: Vec<RunCmd>,
 
+    /// Runcmd execution configuration (shell selection, error handling)
+    pub runcmd_config: Option<RuncmdConfig>,
+
     /// Packages to install
     #[serde(default)]
     pub packages: Vec<String>,
@@ -149,6 +152,27 @@ pub enum RunCmd {
     Shell(String),
     /// Command with arguments
     Args(Vec<String>),
+}
+
+/// Error handling mode for command execution
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ErrorHandlingMode {
+    /// Continue executing subsequent commands even if one fails (default)
+    #[default]
+    Continue,
+    /// Abort execution on the first command failure
+    Abort,
+}
+
+/// Configuration for runcmd execution behavior
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RuncmdConfig {
+    /// Shell to use for executing shell string commands (default: "/bin/sh")
+    pub shell: Option<String>,
+    /// Error handling mode: "continue" (default) or "abort"
+    pub error_handling: Option<ErrorHandlingMode>,
 }
 
 /// SSH configuration
@@ -477,6 +501,97 @@ runcmd:
         assert_eq!(config.runcmd.len(), 2);
         assert!(matches!(&config.runcmd[0], RunCmd::Shell(_)));
         assert!(matches!(&config.runcmd[1], RunCmd::Args(_)));
+    }
+
+    // ==================== Runcmd Config Tests ====================
+
+    #[test]
+    fn test_parse_runcmd_config_shell() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+runcmd_config:
+  shell: /bin/bash
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let rc = config.runcmd_config.unwrap();
+        assert_eq!(rc.shell, Some("/bin/bash".to_string()));
+        assert!(rc.error_handling.is_none());
+    }
+
+    #[test]
+    fn test_parse_runcmd_config_error_handling_abort() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+runcmd_config:
+  error_handling: abort
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let rc = config.runcmd_config.unwrap();
+        assert_eq!(rc.error_handling, Some(ErrorHandlingMode::Abort));
+    }
+
+    #[test]
+    fn test_parse_runcmd_config_error_handling_continue() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+runcmd_config:
+  error_handling: continue
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let rc = config.runcmd_config.unwrap();
+        assert_eq!(rc.error_handling, Some(ErrorHandlingMode::Continue));
+    }
+
+    #[test]
+    fn test_parse_runcmd_config_full() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+runcmd_config:
+  shell: /bin/bash
+  error_handling: abort
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let rc = config.runcmd_config.unwrap();
+        assert_eq!(rc.shell, Some("/bin/bash".to_string()));
+        assert_eq!(rc.error_handling, Some(ErrorHandlingMode::Abort));
+    }
+
+    #[test]
+    fn test_parse_runcmd_config_absent() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        assert!(config.runcmd_config.is_none());
+    }
+
+    #[test]
+    fn test_parse_runcmd_config_empty() {
+        let yaml = r#"
+#cloud-config
+runcmd:
+  - echo hello
+runcmd_config: {}
+"#;
+        let config = CloudConfig::from_yaml(yaml).unwrap();
+        let rc = config.runcmd_config.unwrap();
+        assert!(rc.shell.is_none());
+        assert!(rc.error_handling.is_none());
+    }
+
+    #[test]
+    fn test_error_handling_mode_default() {
+        assert_eq!(ErrorHandlingMode::default(), ErrorHandlingMode::Continue);
     }
 
     // ==================== Package Tests ====================
