@@ -9,6 +9,7 @@ pub use loader::{ConfigLoader, load_full_config, load_merged_config};
 pub use merge::{ListMergeStrategy, merge_all_configs, merge_configs, merge_yaml_strings};
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Main cloud-config structure
 ///
@@ -88,6 +89,9 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// APT-specific configuration
+    pub apt: Option<AptConfig>,
 }
 
 /// User configuration
@@ -212,6 +216,72 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// APT-specific configuration
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AptConfig {
+    /// HTTP proxy URL for APT (e.g. "http://proxy.example.com:3128")
+    pub proxy: Option<String>,
+    /// HTTP proxy URL (alias for `proxy`)
+    pub http_proxy: Option<String>,
+    /// HTTPS proxy URL
+    pub https_proxy: Option<String>,
+    /// FTP proxy URL
+    pub ftp_proxy: Option<String>,
+    /// Additional APT configuration written to /etc/apt/apt.conf.d/90-cloud-init-apt
+    pub conf: Option<String>,
+    /// Named APT sources to add under /etc/apt/sources.list.d/
+    #[serde(default)]
+    pub sources: HashMap<String, AptSource>,
+    /// Repository pinning preferences
+    #[serde(default)]
+    pub preferences: Vec<AptPreference>,
+    /// Primary archive sources
+    #[serde(default)]
+    pub primary: Vec<AptPrimarySource>,
+}
+
+/// A single APT repository source
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AptSource {
+    /// Full `deb …` source line to write into the .list file
+    pub source: Option<String>,
+    /// Inline ASCII-armored GPG public key to import
+    pub key: Option<String>,
+    /// Key fingerprint to fetch from a key server
+    pub keyid: Option<String>,
+    /// Key server to fetch `keyid` from (defaults to keyserver.ubuntu.com)
+    pub keyserver: Option<String>,
+    /// Override the filename written to sources.list.d (without path or .list suffix)
+    pub filename: Option<String>,
+}
+
+/// APT package-pinning preference entry
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AptPreference {
+    /// Package name or glob (e.g. "nginx" or "*")
+    pub package: String,
+    /// Pin value (e.g. "origin nginx.org" or "version 1.2.*")
+    pub pin: String,
+    /// Pin priority (higher wins; 1000+ forces even downgrades)
+    #[serde(rename = "pin-priority")]
+    pub pin_priority: i32,
+}
+
+/// A primary archive source (used to override the default Ubuntu/Debian mirror)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AptPrimarySource {
+    /// Architectures this entry applies to (use "default" for the catch-all)
+    #[serde(default)]
+    pub arches: Vec<String>,
+    /// Mirror URI
+    pub uri: Option<String>,
+    /// Codename override (e.g. "focal")
+    pub codename: Option<String>,
 }
 
 impl CloudConfig {

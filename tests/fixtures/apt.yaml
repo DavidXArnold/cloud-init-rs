@@ -1,0 +1,31 @@
+#cloud-config
+apt:
+  proxy: "http://proxy.example.com:3128"
+  https_proxy: "https://proxy.example.com:3128"
+  ftp_proxy: "ftp://proxy.example.com:21"
+  conf: |
+    Acquire::ForceIPv4 "true";
+    Acquire::Retries "3";
+  sources:
+    nginx-stable:
+      source: "deb http://nginx.org/packages/ubuntu focal nginx"
+      keyid: "ABF5BD827BD9BF62"
+      keyserver: "keyserver.ubuntu.com"
+    my-ppa:
+      source: "deb http://ppa.launchpad.net/example/ppa/ubuntu focal main"
+      key: |
+        -----BEGIN PGP PUBLIC KEY BLOCK-----
+        mI0EUmFakeKeyDataHere==
+        -----END PGP PUBLIC KEY BLOCK-----
+      filename: "example-ppa"
+  preferences:
+    - package: "nginx"
+      pin: "origin nginx.org"
+      pin-priority: 900
+    - package: "*"
+      pin: "release a=stable"
+      pin-priority: 100
+  primary:
+    - arches: [default]
+      uri: "http://us-east-1.ec2.archive.ubuntu.com/ubuntu/"
+      codename: "focal"
