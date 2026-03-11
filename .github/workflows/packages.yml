@@ -160,7 +160,7 @@ jobs:
           find packages -type f \( -name "*.deb" -o -name "*.rpm" -o -name "*.sha256" \) -exec mv {} release-packages/ \;
 
       - name: Upload to Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release-packages/*
         env:
