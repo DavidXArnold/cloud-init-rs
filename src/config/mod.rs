@@ -88,6 +88,13 @@ pub struct CloudConfig {
 
     /// Network configuration (inline v2 format)
     pub network: Option<crate::network::NetworkConfig>,
+
+    /// Red Hat subscription configuration
+    pub rh_subscription: Option<RhSubscriptionConfig>,
+
+    /// YUM repositories to add
+    #[serde(default)]
+    pub yum_repos: std::collections::HashMap<String, YumRepoConfig>,
 }
 
 /// User configuration
@@ -212,6 +219,98 @@ pub struct NtpConfig {
     /// NTP pools
     #[serde(default)]
     pub pools: Vec<String>,
+}
+
+/// Red Hat subscription manager configuration
+///
+/// Supports either username/password or activation-key/org authentication.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RhSubscriptionConfig {
+    /// Red Hat username (used with `password`)
+    pub username: Option<String>,
+
+    /// Red Hat password (used with `username`)
+    pub password: Option<String>,
+
+    /// Activation key for registration (used with `org`)
+    #[serde(rename = "activation-key")]
+    pub activation_key: Option<String>,
+
+    /// Organization ID for activation-key registration
+    pub org: Option<String>,
+
+    /// Automatically attach the best matching subscription
+    #[serde(rename = "auto-attach")]
+    pub auto_attach: Option<bool>,
+
+    /// Desired service level for auto-attach (e.g. `self-support`)
+    #[serde(rename = "service-level")]
+    pub service_level: Option<String>,
+
+    /// Override the RHSM base URL
+    #[serde(rename = "rhsm-baseurl")]
+    pub rhsm_baseurl: Option<String>,
+
+    /// Override the subscription server hostname
+    #[serde(rename = "server-hostname")]
+    pub server_hostname: Option<String>,
+
+    /// Pool IDs to attach after registration
+    #[serde(rename = "add-pool")]
+    pub add_pool: Vec<String>,
+
+    /// Repository IDs to enable after registration
+    #[serde(rename = "enable-repo")]
+    pub enable_repo: Vec<String>,
+
+    /// Repository IDs to disable after registration
+    #[serde(rename = "disable-repo")]
+    pub disable_repo: Vec<String>,
+}
+
+/// Configuration for a single YUM/DNF repository
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct YumRepoConfig {
+    /// Human-readable repository name
+    pub name: Option<String>,
+
+    /// Base URL of the repository
+    pub baseurl: Option<String>,
+
+    /// URL of a mirror list file
+    pub mirrorlist: Option<String>,
+
+    /// URL of a metalink file
+    pub metalink: Option<String>,
+
+    /// Whether the repository is enabled (default `true`)
+    pub enabled: Option<bool>,
+
+    /// Whether GPG signature checking is enabled
+    pub gpgcheck: Option<bool>,
+
+    /// URL or path to the GPG key
+    pub gpgkey: Option<String>,
+
+    /// Repository priority (lower number = higher priority)
+    pub priority: Option<u32>,
+
+    /// Failover method (`roundrobin` or `priority`)
+    pub failovermethod: Option<String>,
+
+    /// Whether to verify SSL certificates
+    pub sslverify: Option<bool>,
+
+    /// Path to the client SSL certificate
+    pub sslclientcert: Option<String>,
+
+    /// Path to the client SSL key
+    pub sslclientkey: Option<String>,
+
+    /// Path to the CA certificate bundle
+    pub sslcacert: Option<String>,
 }
 
 impl CloudConfig {

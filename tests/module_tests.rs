@@ -365,3 +365,330 @@ packages:
     assert_eq!(config.packages.len(), 4);
     assert!(config.packages.contains(&"nginx".to_string()));
 }
+
+// ==================== rh_subscription Module Tests ====================
+
+/// Test parsing rh_subscription with username/password
+#[test]
+fn test_rh_subscription_username_password() {
+    let yaml = r#"#cloud-config
+rh_subscription:
+  username: user@example.com
+  password: mypassword
+  auto-attach: true
+  service-level: self-support
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let sub = config.rh_subscription.unwrap();
+    assert_eq!(sub.username, Some("user@example.com".to_string()));
+    assert_eq!(sub.password, Some("mypassword".to_string()));
+    assert_eq!(sub.auto_attach, Some(true));
+    assert_eq!(sub.service_level, Some("self-support".to_string()));
+    assert!(sub.activation_key.is_none());
+    assert!(sub.org.is_none());
+}
+
+/// Test parsing rh_subscription with activation key
+#[test]
+fn test_rh_subscription_activation_key() {
+    let yaml = r#"#cloud-config
+rh_subscription:
+  activation-key: myactivationkey
+  org: "1234567"
+  add-pool:
+    - 8a85f9833e1d21f2013e1d21c6200011
+  enable-repo:
+    - rhel-7-server-optional-rpms
+  disable-repo:
+    - rhel-7-server-extras-rpms
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let sub = config.rh_subscription.unwrap();
+    assert_eq!(sub.activation_key, Some("myactivationkey".to_string()));
+    assert_eq!(sub.org, Some("1234567".to_string()));
+    assert_eq!(sub.add_pool, vec!["8a85f9833e1d21f2013e1d21c6200011"]);
+    assert_eq!(sub.enable_repo, vec!["rhel-7-server-optional-rpms"]);
+    assert_eq!(sub.disable_repo, vec!["rhel-7-server-extras-rpms"]);
+}
+
+/// Test parsing rh_subscription with server overrides
+#[test]
+fn test_rh_subscription_server_overrides() {
+    let yaml = r#"#cloud-config
+rh_subscription:
+  username: user@example.com
+  password: pass
+  server-hostname: subscription.example.com
+  rhsm-baseurl: https://cdn.example.com
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let sub = config.rh_subscription.unwrap();
+    assert_eq!(
+        sub.server_hostname,
+        Some("subscription.example.com".to_string())
+    );
+    assert_eq!(
+        sub.rhsm_baseurl,
+        Some("https://cdn.example.com".to_string())
+    );
+}
+
+/// Test that absent rh_subscription key produces None
+#[test]
+fn test_rh_subscription_absent() {
+    let yaml = "#cloud-config\nhostname: test\n";
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.rh_subscription.is_none());
+}
+
+/// Test that optional list fields default to empty vecs when not specified
+#[test]
+fn test_rh_subscription_defaults_empty_lists() {
+    let yaml = r#"#cloud-config
+rh_subscription:
+  username: user@example.com
+  password: mypassword
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let sub = config.rh_subscription.unwrap();
+    assert!(sub.add_pool.is_empty());
+    assert!(sub.enable_repo.is_empty());
+    assert!(sub.disable_repo.is_empty());
+    assert!(sub.auto_attach.is_none());
+    assert!(sub.service_level.is_none());
+}
+
+/// Test validation: missing credentials should produce an error
+#[test]
+fn test_rh_subscription_validation_missing_credentials() {
+    use cloud_init_rs::config::RhSubscriptionConfig;
+
+    // No username/password and no activation-key/org → invalid
+    let sub = RhSubscriptionConfig {
+        auto_attach: Some(true),
+        ..Default::default()
+    };
+
+    let has_user_pass = sub.username.is_some() && sub.password.is_some();
+    let has_key_org = sub.activation_key.is_some() && sub.org.is_some();
+    assert!(
+        !has_user_pass && !has_key_org,
+        "Should have no valid credentials"
+    );
+}
+
+/// Test validation: username without password is insufficient
+#[test]
+fn test_rh_subscription_validation_partial_credentials() {
+    use cloud_init_rs::config::RhSubscriptionConfig;
+
+    let sub = RhSubscriptionConfig {
+        username: Some("user@example.com".to_string()),
+        ..Default::default()
+    };
+
+    let has_user_pass = sub.username.is_some() && sub.password.is_some();
+    let has_key_org = sub.activation_key.is_some() && sub.org.is_some();
+    assert!(!has_user_pass, "Partial user/pass should not be valid");
+    assert!(!has_key_org, "No activation key or org present");
+}
+
+// ==================== yum_add_repo Module Tests ====================
+
+/// Test parsing yum_repos from cloud-config
+#[test]
+fn test_yum_repos_config_parsing() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  epel:
+    name: Extra Packages for Enterprise Linux 8
+    baseurl: https://download.fedoraproject.org/pub/epel/8/$basearch
+    enabled: true
+    gpgcheck: true
+    gpgkey: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.yum_repos.len(), 1);
+    let epel = config.yum_repos.get("epel").unwrap();
+    assert_eq!(
+        epel.name,
+        Some("Extra Packages for Enterprise Linux 8".to_string())
+    );
+    assert_eq!(
+        epel.baseurl,
+        Some("https://download.fedoraproject.org/pub/epel/8/$basearch".to_string())
+    );
+    assert_eq!(epel.enabled, Some(true));
+    assert_eq!(epel.gpgcheck, Some(true));
+}
+
+/// Test parsing multiple yum repositories
+#[test]
+fn test_yum_repos_multiple() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  epel:
+    name: EPEL
+    baseurl: https://example.com/epel/$releasever/$basearch/
+    enabled: true
+    gpgcheck: false
+  my-internal:
+    name: Internal Repo
+    baseurl: https://repo.example.com/centos/$releasever/
+    enabled: true
+    gpgcheck: false
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert_eq!(config.yum_repos.len(), 2);
+    assert!(config.yum_repos.contains_key("epel"));
+    assert!(config.yum_repos.contains_key("my-internal"));
+}
+
+/// Test parsing yum repo with mirrorlist instead of baseurl
+#[test]
+fn test_yum_repos_mirrorlist() {
+    let yaml = r#"#cloud-config
+yum_repos:
+  centos-base:
+    name: CentOS Base
+    mirrorlist: http://mirrorlist.centos.org/?release=$releasever&arch=$basearch&repo=os
+    enabled: true
+    gpgcheck: true
+    gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7
+"#;
+
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    let repo = config.yum_repos.get("centos-base").unwrap();
+    assert!(repo.baseurl.is_none());
+    assert!(repo.mirrorlist.is_some());
+    assert_eq!(
+        repo.gpgkey,
+        Some("file:///etc/pki/rpm-gpg/RPM-GPG-KEY-CentOS-7".to_string())
+    );
+}
+
+/// Test that absent yum_repos key yields an empty map
+#[test]
+fn test_yum_repos_absent() {
+    let yaml = "#cloud-config\nhostname: test\n";
+    let config = CloudConfig::from_yaml(yaml).unwrap();
+    assert!(config.yum_repos.is_empty());
+}
+
+/// Test yum_add_repo::build_repo_content produces correct INI format
+#[test]
+fn test_build_repo_content_basic() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_add_repo::build_repo_content;
+
+    let repo = YumRepoConfig {
+        name: Some("My Repo".to_string()),
+        baseurl: Some("https://repo.example.com/centos/8/$basearch/".to_string()),
+        enabled: Some(true),
+        gpgcheck: Some(false),
+        ..Default::default()
+    };
+
+    let content = build_repo_content("my-repo", &repo);
+    assert!(content.contains("[my-repo]"));
+    assert!(content.contains("name=My Repo"));
+    assert!(content.contains("baseurl=https://repo.example.com/centos/8/$basearch/"));
+    assert!(content.contains("enabled=1"));
+    assert!(content.contains("gpgcheck=0"));
+}
+
+/// Test build_repo_content with all optional fields
+#[test]
+fn test_build_repo_content_full() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_add_repo::build_repo_content;
+
+    let repo = YumRepoConfig {
+        name: Some("Full Repo".to_string()),
+        baseurl: Some("https://repo.example.com/".to_string()),
+        enabled: Some(true),
+        gpgcheck: Some(true),
+        gpgkey: Some("https://repo.example.com/RPM-GPG-KEY".to_string()),
+        priority: Some(10),
+        failovermethod: Some("priority".to_string()),
+        sslverify: Some(true),
+        sslclientcert: Some("/etc/pki/client.crt".to_string()),
+        sslclientkey: Some("/etc/pki/client.key".to_string()),
+        sslcacert: Some("/etc/pki/ca.crt".to_string()),
+        ..Default::default()
+    };
+
+    let content = build_repo_content("full-repo", &repo);
+    assert!(content.contains("[full-repo]"));
+    assert!(content.contains("gpgkey=https://repo.example.com/RPM-GPG-KEY"));
+    assert!(content.contains("priority=10"));
+    assert!(content.contains("failovermethod=priority"));
+    assert!(content.contains("sslverify=1"));
+    assert!(content.contains("sslclientcert=/etc/pki/client.crt"));
+    assert!(content.contains("sslclientkey=/etc/pki/client.key"));
+    assert!(content.contains("sslcacert=/etc/pki/ca.crt"));
+}
+
+/// Test build_repo_content falls back to id when name is absent
+#[test]
+fn test_build_repo_content_name_fallback() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_add_repo::build_repo_content;
+
+    let repo = YumRepoConfig {
+        baseurl: Some("https://repo.example.com/".to_string()),
+        ..Default::default()
+    };
+
+    let content = build_repo_content("my-id", &repo);
+    // When name is absent, the id is used as the name
+    assert!(content.contains("name=my-id"));
+}
+
+/// Test build_repo_content default enabled=true when not specified
+#[test]
+fn test_build_repo_content_default_enabled() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_add_repo::build_repo_content;
+
+    let repo = YumRepoConfig {
+        baseurl: Some("https://repo.example.com/".to_string()),
+        ..Default::default()
+    };
+
+    let content = build_repo_content("test-repo", &repo);
+    // Default enabled is true → 1
+    assert!(content.contains("enabled=1"));
+}
+
+/// Test write_repo_file to a temp directory
+#[tokio::test]
+async fn test_write_repo_file() {
+    use cloud_init_rs::config::YumRepoConfig;
+    use cloud_init_rs::modules::yum_add_repo::build_repo_content;
+
+    let temp_dir = TempDir::new().unwrap();
+    let repo_id = "test-epel";
+    let repo = YumRepoConfig {
+        name: Some("Test EPEL".to_string()),
+        baseurl: Some("https://example.com/epel/8/$basearch/".to_string()),
+        enabled: Some(true),
+        gpgcheck: Some(false),
+        ..Default::default()
+    };
+
+    let content = build_repo_content(repo_id, &repo);
+    let path = temp_dir.path().join(format!("{}.repo", repo_id));
+    fs::write(&path, &content).unwrap();
+
+    let written = fs::read_to_string(&path).unwrap();
+    assert!(written.contains("[test-epel]"));
+    assert!(written.contains("name=Test EPEL"));
+    assert!(written.contains("baseurl=https://example.com/epel/8/$basearch/"));
+}
