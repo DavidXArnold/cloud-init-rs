@@ -42,7 +42,7 @@ A safe Rust implementation of [cloud-init](https://github.com/canonical/cloud-in
 - [x] `timezone` - Set system timezone
 - [x] `locale` - Set system locale
 - [x] `ntp` - Configure NTP (chrony/timesyncd/ntpd)
-- [ ] `growpart` - Grow partitions (planned)
+- [x] `growpart` - Grow partitions
 - [ ] `resize_rootfs` - Resize root filesystem (planned)
 
 ### Network Configuration

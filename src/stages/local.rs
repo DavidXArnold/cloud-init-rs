@@ -8,6 +8,8 @@
 //! - Apply network configuration
 
 use crate::CloudInitError;
+use crate::config::{CloudConfig, GrowpartConfig};
+use crate::modules::growpart;
 use crate::network::render::apply_network_config;
 use crate::network::v1::parse_network_config;
 use crate::state::InstanceState;
@@ -106,9 +108,54 @@ async fn apply_network_from_content(content: &str) -> Result<(), CloudInitError>
 
 async fn grow_partition() -> Result<(), CloudInitError> {
     debug!("Checking if partition needs to be grown");
-    // TODO: Implement growpart functionality
-    // This is typically done via growpart utility or direct partition manipulation
+
+    // Load growpart configuration from the cloud-config if available,
+    // otherwise fall back to sensible defaults (mode=auto, device="/").
+    let config = load_growpart_config().await;
+    if let Err(e) = growpart::grow_partitions(&config).await {
+        warn!("Growpart failed (non-fatal): {}", e);
+    }
+
     Ok(())
+}
+
+/// Load GrowpartConfig from the cached cloud-config, falling back to defaults.
+async fn load_growpart_config() -> GrowpartConfig {
+    if let Ok(cloud_config) = try_load_cloud_config().await {
+        if let Some(growpart_cfg) = cloud_config.growpart {
+            return growpart_cfg;
+        }
+    }
+
+    // Default: auto mode, grow the root partition
+    GrowpartConfig {
+        mode: Some("auto".to_string()),
+        devices: Some(vec!["/".to_string()]),
+        ignore_growroot_disabled: Some(false),
+    }
+}
+
+/// Attempt to load CloudConfig from the instance state directory.
+/// Returns an empty config if nothing is found.
+async fn try_load_cloud_config() -> Result<CloudConfig, CloudInitError> {
+    let mut state = InstanceState::new();
+    if let Ok(Some(instance_id)) = state.load_cached_instance_id().await {
+        let paths = state.paths();
+        let config_path = paths.cloud_config(&instance_id);
+        if config_path.exists() {
+            let content = fs::read_to_string(&config_path).await.map_err(|e| {
+                CloudInitError::InvalidData(format!(
+                    "Failed to read cloud-config from {}: {}",
+                    config_path.display(),
+                    e
+                ))
+            })?;
+            return CloudConfig::from_yaml(&content).map_err(|e| {
+                CloudInitError::InvalidData(format!("Failed to parse cloud-config: {}", e))
+            });
+        }
+    }
+    Ok(CloudConfig::default())
 }
 
 async fn resize_filesystem() -> Result<(), CloudInitError> {
