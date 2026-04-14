@@ -103,7 +103,7 @@ jobs:
           find artifacts -type f -exec mv {} release/ \;
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release/*
           body_path: CHANGELOG.md
